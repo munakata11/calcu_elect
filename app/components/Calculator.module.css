@@ -1,0 +1,8 @@
+.display {
+  /* Šù‘¶‚ÌƒXƒ^ƒCƒ‹ */
+}
+
+.display[data-empty="true"] {
+  color: #666;
+  font-style: italic;
+} 

@@ -1,0 +1,25 @@
+.history {
+  max-height: 200px;
+  overflow-y: auto;
+  margin: 10px 0;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+}
+
+.historyItem {
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+  font-size: 1em;
+  color: #333;
+  display: flex;
+  justify-content: flex-end;
+  font-family: monospace;
+}
+
+.historyItem:last-child {
+  border-bottom: none;
+  color: #0066cc;
+  font-weight: bold;
+} 
