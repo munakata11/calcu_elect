@@ -1,0 +1,132 @@
+src:
+  frontend:
+    next.js:
+      _app.tsx:
+        content: "Next.js アプリケーションのメインエントリーポイント"
+        dependency:
+          - src/frontend/styles/globals.css
+          - src/frontend/contexts/AppContext.tsx
+          - src/frontend/i18n/config.ts
+
+      pages:
+        index.tsx:
+          content: "メインダッシュボードページ"
+          dependency:
+            - src/frontend/components/Calculator.tsx
+            - src/frontend/hooks/useCalculator.ts
+            - src/frontend/i18n/translations.json
+
+        settings.tsx:
+          content: "アプリケーション設定ページ"
+          dependency:
+            - src/frontend/components/SettingsForm.tsx
+            - src/frontend/hooks/useSettings.ts
+
+    components:
+      Calculator.tsx:
+        content: "計算機UIコンポーネント"
+        dependency:
+          - src/frontend/hooks/useCalculator.ts
+          - src/backend/python/calculator.py
+
+      SettingsForm.tsx:
+        content: "設定フォームコンポーネント"
+        dependency:
+          - src/frontend/hooks/useSettings.ts
+
+    hooks:
+      useCalculator.ts:
+        content: "計算ロジックとPython直接実行フック"
+        dependency:
+          - src/backend/python/calculator.py
+          - src/frontend/services/pythonBridge.ts
+
+      useSettings.ts:
+        content: "設定管理フック"
+        dependency:
+          - src/frontend/services/storageService.ts
+
+    services:
+      pythonBridge.ts:
+        content: "Python直接実行ブリッジ"
+        dependency:
+          - src/backend/python/calculator.py
+
+      storageService.ts:
+        content: "ローカルストレージ管理サービス"
+        dependency: []
+
+    i18n:
+      config.ts:
+        content: "多言語設定"
+        dependency:
+          - src/frontend/i18n/translations.json
+
+      translations.json:
+        content: "多言語翻訳ファイル"
+        dependency: []
+
+    styles:
+      globals.css:
+        content: "グローバルスタイル"
+        dependency: []
+
+  backend:
+    python:
+      calculator.py:
+        content: "Python計算ロジック"
+        dependency: []
+
+      subprocess_runner.py:
+        content: "Python直接実行ランナー"
+        dependency:
+          - src/backend/python/calculator.py
+
+  electron:
+    main.js:
+      content: "Electronメインプロセス"
+      dependency:
+        - src/backend/python/subprocess_runner.py
+        - src/frontend/next.js/out
+
+    preload.js:
+      content: "セキュアなコンテキストブリッジ"
+      dependency: 
+        - src/backend/python/subprocess_runner.py
+
+  config:
+    env:
+      .env:
+        content: "共通環境変数"
+        dependency: []
+      .env.development:
+        content: "開発環境変数"
+        dependency: []
+      .env.production:
+        content: "本番環境変数"
+        dependency: []
+
+  scripts:
+    build_win.sh:
+      content: "Windows向けビルドスクリプト"
+      dependency:
+        - src/electron/main.js
+        - src/backend/python/calculator.py
+
+  tests:
+    frontend:
+      calculator.test.tsx:
+        content: "計算機コンポーネントテスト"
+        dependency:
+          - src/frontend/components/Calculator.tsx
+
+    backend:
+      calculator.test.py:
+        content: "Python計算ロジックテスト"
+        dependency:
+          - src/backend/python/calculator.py
+
+  docs:
+    README.md:
+      content: "プロジェクト説明ドキュメント"
+      dependency: []
