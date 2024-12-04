@@ -482,7 +482,7 @@ export function Calculator() {
         response.content = "申し訳ありません。その計算式は理解できませんでした。"
       }
     } catch {
-      response.content = "申し訳ありません。その計式は理解できませんでした。"
+      response.content = "申し訳ありません。その計は理解できませんでした。"
     }
 
     setMessages([...messages, userMessage, response])
@@ -859,7 +859,7 @@ export function Calculator() {
   return (
     <div className={`flex gap-0 ${isDarkMode ? 'dark bg-slate-900' : 'bg-white'}`}>
       <div className="flex">
-        <Card className={`w-96 ${isDarkMode ? 'dark bg-slate-800 border-slate-700' : ''} ${isRightPanelOpen ? 'rounded-r-none border-r-0' : ''}`}>
+        <Card className={`w-96 ${isDarkMode ? 'dark bg-slate-800 border-slate-700' : ''} ${isRightPanelOpen ? 'rounded-r-none border-r-0' : ''} rounded-none`}>
           <CardContent className="p-4">
             <div className="grid grid-cols-4 gap-2 mb-4">
               <Button
@@ -1036,14 +1036,14 @@ export function Calculator() {
         </Card>
 
         {isRightPanelOpen && (
-          <Card className={`w-96 ${isDarkMode ? 'dark bg-slate-800 border-slate-700' : ''} rounded-l-none relative`}>
+          <Card className={`w-96 ${isDarkMode ? 'dark bg-slate-800 border-slate-700' : ''} rounded-none relative`}>
             <CardContent className="p-4">
               <div className="flex justify-between items-center mb-4">
                 <div className="flex gap-2">
                   <Button
                     variant="ghost"
                     size="sm"
-                    className={rightPanelView === 'chat' ? 'bg-secondary' : ''}
+                    className={`${rightPanelView === 'chat' ? 'bg-slate-100 dark:bg-slate-700' : ''} hover:bg-slate-100 dark:hover:bg-slate-700`}
                     onClick={() => setRightPanelView('chat')}
                   >
                     チャット
@@ -1051,7 +1051,7 @@ export function Calculator() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className={rightPanelView === 'history' ? 'bg-secondary' : ''}
+                    className={`${rightPanelView === 'history' ? 'bg-slate-100 dark:bg-slate-700' : ''} hover:bg-slate-100 dark:hover:bg-slate-700`}
                     onClick={() => setRightPanelView('history')}
                   >
                     計算履歴
@@ -1061,6 +1061,7 @@ export function Calculator() {
                   <Button
                     variant="ghost"
                     size="icon"
+                    className="hover:bg-slate-100 dark:hover:bg-slate-700"
                     onClick={() => setChatView(chatView === 'chat' ? 'history' : 'chat')}
                   >
                     <History className="h-4 w-4" />
@@ -1114,13 +1115,13 @@ export function Calculator() {
                         placeholder="AIで計算します"
                         className={isDarkMode ? 'bg-slate-700 border-slate-600' : ''}
                       />
-                      <Button type="submit" size="icon" className={getButtonClass('primary')}>
+                      <Button type="submit" size="icon" className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600">
                         <Send className="h-4 w-4" />
                       </Button>
                       <Button 
                         type="button"
                         size="icon" 
-                        className={getButtonClass('primary')}
+                        className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600"
                         onClick={handleVoiceInput}
                       >
                         <Mic className="h-4 w-4" />
@@ -1128,7 +1129,7 @@ export function Calculator() {
                       <Button 
                         type="button"
                         size="icon" 
-                        className={getButtonClass('primary')}
+                        className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600"
                       >
                         <Paperclip className="h-4 w-4" />
                       </Button>

@@ -3,7 +3,10 @@ import { useState } from 'react';
 declare global {
   interface Window {
     electronAPI: {
-      calculate: (expression: string) => Promise<{ result: number } | { error: string }>;
+      calculate: (expression: string) => Promise<{
+        result?: string;
+        error?: string;
+      }>;
     }
   }
 }
@@ -15,11 +18,11 @@ export const useCalculator = () => {
   const calculate = async (expression: string) => {
     try {
       const response = await window.electronAPI.calculate(expression);
-      if ('result' in response) {
-        setResult(response.result);
+      if ('result' in response && response.result) {
+        setResult(parseFloat(response.result));
         setError(null);
       } else {
-        setError(response.error);
+        setError(response.error ?? '計算結果が不正です');
         setResult(null);
       }
     } catch (error: unknown) {

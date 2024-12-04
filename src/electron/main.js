@@ -16,8 +16,8 @@ function handlePythonProcessError(error) {
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 805,
-    height: 683,
+    width: 820,
+    height: 719,
     minWidth: 400,
     minHeight: 500,
     webPreferences: {
