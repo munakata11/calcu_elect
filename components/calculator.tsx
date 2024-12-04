@@ -171,7 +171,7 @@ export function Calculator() {
     }
   };
 
-  // 演��子設定
+  // 演子設定
   const setOperator = async (op: string) => {
     if (currentInput === "0" && expression === "") {
       return;
@@ -840,8 +840,20 @@ export function Calculator() {
   }, [calculatedResult, handleResize]);
 
   // パネルの開閉処理を修正
-  const toggleRightPanel = useCallback(() => {
-    setIsRightPanelOpen(!isRightPanelOpen);
+  const toggleRightPanel = useCallback(async () => {
+    try {
+      // パネルの状態を切り替える前に新しい状態を計算
+      const willBeOpen = !isRightPanelOpen;
+      
+      // ウィンドウサイズを変更
+      // @ts-ignore - window.electronAPI は preload.js で定義
+      await window.electronAPI.togglePanelSize(willBeOpen);
+      
+      // パネルの状態を更新
+      setIsRightPanelOpen(willBeOpen);
+    } catch (error) {
+      console.error('パネル切り替えエラー:', error);
+    }
   }, [isRightPanelOpen]);
 
   return (

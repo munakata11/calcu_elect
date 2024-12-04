@@ -16,8 +16,8 @@ function handlePythonProcessError(error) {
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 800,
-    height: 700,
+    width: 820,
+    height: 719,
     minWidth: 400,
     minHeight: 500,
     webPreferences: {
@@ -147,4 +147,20 @@ if (process.env.NODE_ENV === 'development') {
   require('electron-reload')(__dirname, {
     electron: path.join(__dirname, '..', '..', 'node_modules', '.bin', 'electron')
   });
-} 
+}
+
+// パネル開閉時のウィンドウサイズ変更ハンドラー
+ipcMain.handle('toggle-panel-size', async (event, isOpen) => {
+  try {
+    const [currentWidth, currentHeight] = win.getSize();
+    const panelWidth = 384; // 右パネルの幅（w-96 = 384px）
+    
+    // パネルの状態に応じてウィンドウサイズを変更
+    const newWidth = isOpen ? currentWidth + panelWidth : currentWidth - panelWidth;
+    win.setSize(newWidth, currentHeight);
+    
+    console.log('Window size updated:', { width: newWidth, height: currentHeight, panelState: isOpen ? 'open' : 'closed' });
+  } catch (error) {
+    console.error('パネルサイズ変更エラー:', error);
+  }1
+}); 
