@@ -857,7 +857,7 @@ export function Calculator() {
   }, [isRightPanelOpen]);
 
   return (
-    <div className={`flex gap-0 p-4 ${isDarkMode ? 'dark bg-slate-900' : 'bg-gray-50'}`}>
+    <div className={`flex gap-0 ${isDarkMode ? 'dark bg-slate-900' : 'bg-white'}`}>
       <div className="flex">
         <Card className={`w-96 ${isDarkMode ? 'dark bg-slate-800 border-slate-700' : ''} ${isRightPanelOpen ? 'rounded-r-none border-r-0' : ''}`}>
           <CardContent className="p-4">
