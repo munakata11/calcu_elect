@@ -55,7 +55,7 @@ export function Calculator() {
   const [colorScheme, setColorScheme] = useState<ColorScheme>('light')
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true)
-  const [rightPanelView, setRightPanelView] = useState<'chat' | 'history'>('chat')
+  const [rightPanelView, setRightPanelView] = useState<'chat' | 'history' | 'extended-display'>('chat')
   const [chatView, setChatView] = useState<'chat' | 'history'>('chat')
   const [aiModel, setAIModel] = useState<AIModel>('gpt4')
   const [previousResult, setPreviousResult] = useState<string | null>(null)
@@ -66,6 +66,7 @@ export function Calculator() {
   const [isMillimeter, setIsMillimeter] = useState(true)
   const [isMillimeterCube, setIsMillimeterCube] = useState(true)
   const [fullExpression, setFullExpression] = useState<string>("")
+  const [isDisplayOverflowing, setIsDisplayOverflowing] = useState(false)
 
   // Pythonバックエンドに計算をリクエストする関数
   const calculateWithPython = async (expression: string): Promise<number> => {
@@ -251,7 +252,7 @@ export function Calculator() {
     try {
       let finalExpression = expression;
       
-      // すでに計算結果が表示されている場合は何もしない
+      // すでに計算結果が示されている場合は何もしない
       if (expression.includes('=')) {
         return;
       }
@@ -305,7 +306,7 @@ export function Calculator() {
     }
   };
 
-  // 数値入力時にリアルタイム計算を実行
+  // 数値入力時にアルタイム計算を実行
   useEffect(() => {
     if (operation && !expression.includes('=')) {
       updateRealTimeCalculation(expression);
@@ -477,12 +478,12 @@ export function Calculator() {
     try {
       const result = eval(input.replace('×', '*').replace('÷', '/'))
       if (typeof result === 'number' && !isNaN(result)) {
-        response.content = `計算結果は ${result} です。`
+        response.content = `計結果は ${result} です。`
       } else {
         response.content = "申し訳ありません。その計算式は理解できませんでした。"
       }
     } catch {
-      response.content = "申し訳ありません。その計は理解できませんでした。"
+      response.content = "申し訳ありません。の計は理解できませんでした。"
     }
 
     setMessages([...messages, userMessage, response])
@@ -596,7 +597,7 @@ export function Calculator() {
 
     // 四則演算記号入力された場合の処理
     if (['+', '-', '×', '÷', '*', '/'].includes(lastChar)) {
-      // 直前までの文字列に三角関数が含まれているかチェック
+      // 直前までの文字に三角関数が含まれているかチェッ
       const trigMatch = value.slice(0, -1).match(/(sin|cos|tan)(\d+)$/)
       if (trigMatch) {
         const [fullMatch, func, angle] = trigMatch
@@ -777,7 +778,7 @@ export function Calculator() {
     const mainContent = document.querySelector('main');
     if (container && mainContent) {
       try {
-        // 実際のコンテンツの高さを取得（スクロール可能な高さを含む）
+        // 実のコンテンツの高さを取得（スクロール可能な高さを含む）
         const contentHeight = Math.max(
           container.scrollHeight,
           mainContent.scrollHeight,
@@ -842,19 +843,61 @@ export function Calculator() {
   // パネルの開閉処理を修正
   const toggleRightPanel = useCallback(async () => {
     try {
-      // パネルの状態を切り替える前に新しい状態を計算
       const willBeOpen = !isRightPanelOpen;
       
-      // ウィンドウサイズを変更
+      // 拡張表示中にパネルを閉じようとした場合は拡張表示も解除
+      if (!willBeOpen && rightPanelView === 'extended-display') {
+        setRightPanelView('chat');
+      }
+      
       // @ts-ignore - window.electronAPI は preload.js で定義
       await window.electronAPI.togglePanelSize(willBeOpen);
-      
-      // パネルの状態を更新
       setIsRightPanelOpen(willBeOpen);
     } catch (error) {
       console.error('パネル切り替えエラー:', error);
     }
-  }, [isRightPanelOpen]);
+  }, [isRightPanelOpen, rightPanelView]);
+
+  // ディスプレイのオーバーフローを監視
+  useEffect(() => {
+    const displayElement = document.querySelector('.calculator-display');
+    if (displayElement) {
+      const resizeObserver = new ResizeObserver(async (entries) => {
+        for (const entry of entries) {
+          const isOverflowing = entry.target.scrollWidth > entry.target.clientWidth;
+          setIsDisplayOverflowing(isOverflowing);
+          if (isOverflowing) {
+            setRightPanelView('extended-display');
+            if (!isRightPanelOpen) {
+              setIsRightPanelOpen(true);
+              // @ts-ignore - window.electronAPI は preload.js で定義
+              await window.electronAPI.togglePanelSize(true);
+            }
+          }
+        }
+      });
+
+      resizeObserver.observe(displayElement);
+      return () => resizeObserver.disconnect();
+    }
+  }, [expression, isRightPanelOpen]);
+
+  // 拡張表示ボタンのクリックハンドラ
+  const handleExtendedDisplayClick = async () => {
+    if (rightPanelView === 'extended-display') {
+      setRightPanelView('chat');
+      setIsRightPanelOpen(false);
+      // @ts-ignore - window.electronAPI は preload.js で定義
+      await window.electronAPI.togglePanelSize(false);
+    } else if (isDisplayOverflowing) {
+      setRightPanelView('extended-display');
+      if (!isRightPanelOpen) {
+        setIsRightPanelOpen(true);
+        // @ts-ignore - window.electronAPI は preload.js で定義
+        await window.electronAPI.togglePanelSize(true);
+      }
+    }
+  };
 
   return (
     <div className={`flex gap-0 ${isDarkMode ? 'dark bg-slate-900' : 'bg-white'}`}>
@@ -889,10 +932,10 @@ export function Calculator() {
                 CAD読込
               </Button>
             </div>
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              <div className="flex gap-1">
+            <div className="grid grid-cols-2 gap-1 mb-3">
+              <div className="flex gap-0.5">
                 <Button 
-                  className={`${getButtonClass('secondary')} flex-grow`} 
+                  className={`${getButtonClass('secondary')} flex-grow h-10`} 
                   onClick={mmToM}
                 >
                   {isMillimeter ? 'mm → m' : 'm → mm'}
@@ -900,15 +943,15 @@ export function Calculator() {
                 <Button 
                   size="sm"
                   variant="outline" 
-                  className="px-2" 
+                  className="px-2 h-10" 
                   onClick={() => toggleUnit('length')}
                 >
                   ⇄
                 </Button>
               </div>
-              <div className="flex gap-1">
+              <div className="flex gap-0.5">
                 <Button 
-                  className={`${getButtonClass('secondary')} flex-grow`} 
+                  className={`${getButtonClass('secondary')} flex-grow h-10`} 
                   onClick={mmCubeToMCube}
                 >
                   {isMillimeterCube ? 'mm³ → m³' : 'm³ → mm³'}
@@ -916,19 +959,19 @@ export function Calculator() {
                 <Button 
                   size="sm"
                   variant="outline" 
-                  className="px-2" 
+                  className="px-2 h-10" 
                   onClick={() => toggleUnit('volume')}
                 >
                   ⇄
                 </Button>
               </div>
             </div>
-            <div className="flex gap-2 mb-4">
-              <div className={`flex-1 rounded-lg ${isDarkMode ? 'bg-slate-700' : colorSchemes[colorScheme].display} p-4 shadow-inner overflow-hidden`}>
-                <div className="text-right text-sm text-muted-foreground min-h-[1.25rem] break-all whitespace-pre-wrap">
+            <div className="flex gap-2 mb-3">
+              <div className={`flex-1 rounded-lg ${isDarkMode ? 'bg-slate-700' : colorSchemes[colorScheme].display} p-4 h-[100px] shadow-inner overflow-hidden`}>
+                <div className={`text-right text-sm text-muted-foreground min-h-[1.25rem] whitespace-nowrap overflow-x-auto calculator-display ${isDisplayOverflowing ? 'opacity-0' : ''}`} style={{ direction: 'rtl' }}>
                   {expression}
                 </div>
-                <div className="text-right text-4xl font-bold tabular-nums overflow-x-auto whitespace-nowrap">
+                <div className={`text-right text-4xl font-bold tabular-nums overflow-y-hidden overflow-x-auto whitespace-nowrap ${rightPanelView === 'extended-display' && isDisplayOverflowing ? 'opacity-0' : ''}`} style={{ direction: 'rtl' }}>
                   {formatNumber(calculatedResult)}
                 </div>
               </div>
@@ -952,7 +995,7 @@ export function Calculator() {
                 </Tooltip>
               </TooltipProvider>
             </div>
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-5 gap-1.5">
                   <Button variant="ghost" className="bg-slate-100 hover:bg-slate-200 text-slate-800">45°</Button>
                   <Button className={getButtonClass('primary')} onClick={() => appendNumber("7")}>7</Button>
                   <Button className={getButtonClass('primary')} onClick={() => appendNumber("8")}>8</Button>
@@ -996,7 +1039,6 @@ export function Calculator() {
                   <Button className={getButtonClass('accent')} onClick={circleArea}>円面積</Button>
                   <Button className={getButtonClass('accent')} onClick={() => multiplyBy(5)}>×5</Button>
                   <Button className={getButtonClass('accent')} onClick={() => multiplyBy(2.5)}>×2.5</Button>
-
                   <Button className={getButtonClass('accent')} onClick={() => multiplyBy(0.2)}>×0.2</Button>
                   <Button className={getButtonClass('accent')} onClick={() => multiplyBy(0.4)}>×0.4</Button>
                   <Button 
@@ -1056,20 +1098,27 @@ export function Calculator() {
                   >
                     計算履歴
                   </Button>
-                </div>
-                {rightPanelView === 'chat' && (
                   <Button
                     variant="ghost"
-                    size="icon"
-                    className="hover:bg-slate-100 dark:hover:bg-slate-700"
-                    onClick={() => setChatView(chatView === 'chat' ? 'history' : 'chat')}
+                    size="sm"
+                    className={`${rightPanelView === 'extended-display' ? 'bg-slate-100 dark:bg-slate-700' : ''} hover:bg-slate-100 dark:hover:bg-slate-700`}
+                    onClick={handleExtendedDisplayClick}
                   >
-                    <History className="h-4 w-4" />
+                    拡張表示
                   </Button>
-                )}
+                </div>
               </div>
 
-              {rightPanelView === 'chat' ? (
+              {rightPanelView === 'extended-display' && isDisplayOverflowing ? (
+                <div className={`rounded-lg ${isDarkMode ? 'bg-slate-700' : colorSchemes[colorScheme].display} p-4 shadow-inner overflow-hidden mb-4`}>
+                  <div className="text-right text-sm text-muted-foreground min-h-[1.25rem] break-all whitespace-pre-wrap">
+                    {expression}
+                  </div>
+                  <div className="text-right text-4xl font-bold tabular-nums overflow-y-hidden overflow-x-auto whitespace-nowrap" style={{ direction: 'rtl' }}>
+                    {formatNumber(calculatedResult)}
+                  </div>
+                </div>
+              ) : rightPanelView === 'chat' ? (
                 <>
                   <ScrollArea className="h-[500px] mb-4">
                     {chatView === 'chat' ? (
@@ -1092,7 +1141,7 @@ export function Calculator() {
                     ) : (
                       messages.map((message, index) => (
                         <div key={index} className="mb-2 text-sm">
-                          <strong>{message.role === "user" ? "あな" : "アシスタント"}:</strong> {message.content}
+                          <strong>{message.role === "user" ? "あ" : "アシスタント"}:</strong> {message.content}
                         </div>
                       ))
                     )}
