@@ -74,17 +74,28 @@ export function Calculator() {
   const [isDisplayOverflowing, setIsDisplayOverflowing] = useState(false)
 
   // Pythonバックエンドに計算をリクエストする関数
-  const calculateWithPython = async (expression: string): Promise<number> => {
+  interface CalculationResult {
+    result?: string;
+    error?: string;
+    intermediate?: string;
+  }
+
+  const calculateWithPython = async (expression: string): Promise<{ result: string; intermediate: string | null }> => {
     try {
+      // 演算子を標準形式に変換
+      const normalizedExpression = expression
+        .replace(/×/g, '*')
+        .replace(/÷/g, '/');
+
       // @ts-ignore - window.electronAPI は preload.js で定義
-      const result = await window.electronAPI.calculate(expression);
-      if (!result || result.error) {
-        throw new Error(result?.error || '計算エラーが発生しました');
+      const result: CalculationResult = await window.electronAPI.calculate(normalizedExpression);
+      if (!result) {
+        throw new Error('計算エラーが発生しました');
       }
-      if (!result.result) {
-        throw new Error('計算結果が不正です');
-      }
-      return parseFloat(result.result);
+      return {
+        result: result.result || expression,
+        intermediate: result.intermediate || null
+      };
     } catch (error) {
       console.error('計算エラー:', error);
       throw error;
@@ -185,9 +196,10 @@ export function Calculator() {
         const hasTrigFunc = trigFuncs.some(func => expression.startsWith(func));
         
         if (hasTrigFunc) {
-          const result = await calculateWithPython(expression);
-          setPreviousValue(result);
-          setCalculatedResult(String(result));
+          const normalizedExpression = expression.replace(/×/g, '*').replace(/÷/g, '/');
+          const result = await calculateWithPython(normalizedExpression);
+          setPreviousValue(parseFloat(result.result));
+          setCalculatedResult(result.result);
           const newExpression = `${expression}${op}`;
           setExpression(newExpression);
           setFullExpression(fullExpression === "" ? expression : `${fullExpression}${op}`);
@@ -200,24 +212,28 @@ export function Calculator() {
           setFullExpression(fullExpression === "" ? currentInput : `${fullExpression}${op}`);
         }
       } else if (operation) {
-        const current = parseFloat(currentInput);
-        // 演算子を変換してから計算式を作成
-        const normalizedOperation = operation
-          .replace('×', '*')
-          .replace('÷', '/');
-        const result = await calculateWithPython(`${previousValue}${normalizedOperation}${current}`);
-        setPreviousValue(result);
-        setCalculatedResult(String(result));
+        // 演算子が既に存在する場合は、新しい演算子に置き換える
+        const lastChar = expression.slice(-1);
+        if (['+', '-', '×', '÷'].includes(lastChar)) {
+          const newExpression = expression.slice(0, -1) + op;
+          setExpression(newExpression);
+          setOperation(op);
+          return;
+        }
+
+        const normalizedExpression = expression.replace(/×/g, '*').replace(/÷/g, '/');
+        const result = await calculateWithPython(normalizedExpression);
+        setPreviousValue(parseFloat(result.result));
+        setCalculatedResult(result.result);
         
-        setFullExpression(`${fullExpression}${current}${op}`);
-        setExpression(`${result}${op}`);
+        setFullExpression(`${fullExpression}${result.result}${op}`);
+        setExpression(`${result.result}${op}`);
       }
       setOperation(op);
       setNewNumber(true);
       setCurrentInput("0");
     } catch (error) {
       console.error('計算エラー:', error);
-      // エラー状態をクリアして初期状態に戻す
       setCalculatedResult('0');
       setExpression('');
       setOperation(null);
@@ -241,42 +257,37 @@ export function Calculator() {
         return;
       }
 
-      if (operation) {
-        const current = currentInput;
-        const parts = expression.split(' ');
-        if (['+', '-', '×', '÷'].includes(parts[parts.length - 1])) {
-          finalExpression = `${expression}${current}`;
-        } else {
-          finalExpression = expression;
-        }
+      // 演算子で終わっている場合は、最後の演算子を除去
+      const lastChar = finalExpression.slice(-1);
+      if (['+', '-', '×', '÷'].includes(lastChar)) {
+        finalExpression = finalExpression.slice(0, -1);
       }
 
-      // 演算子を変換
-      finalExpression = finalExpression
-        .replace(/×/g, '*')
-        .replace(/÷/g, '/');
+      // 演算子を標準形式に変換
+      const normalizedExpression = finalExpression.replace(/×/g, '*').replace(/÷/g, '/');
 
       // @ts-ignore - window.electronAPI は preload.js で定義
-      const result = await window.electronAPI.calculate(finalExpression);
-      if (result && result.result) {
-        const calculatedValue = result.result;
-        setCalculatedResult(String(calculatedValue));
-        setExpression(`${expression}=${calculatedValue}`);
-        
-        const historyEntry = `${expression}=${calculatedValue}`;
-        setCalculatorHistory(prev => [...prev, historyEntry]);
-        
-        setPreviousValue(parseFloat(calculatedValue));
-        setOperation(null);
-        setNewNumber(true);
-        setCurrentInput(String(calculatedValue));
-        setFullExpression(historyEntry);
+      const result = await window.electronAPI.calculate(normalizedExpression);
+      if (result) {
+        const calculatedValue = result.intermediate || result.result;
+        if (calculatedValue) {
+          setCalculatedResult(calculatedValue);
+          setExpression(`${finalExpression}=${calculatedValue}`);
+          
+          const historyEntry = `${finalExpression}=${calculatedValue}`;
+          setCalculatorHistory(prev => [...prev, historyEntry]);
+          
+          setPreviousValue(parseFloat(calculatedValue));
+          setOperation(null);
+          setNewNumber(true);
+          setCurrentInput(calculatedValue);
+          setFullExpression(historyEntry);
+        }
       } else {
-        throw new Error(result?.error || '計算エラーが発生しました');
+        throw new Error('計算エラーが発生しました');
       }
     } catch (error) {
       console.error('計算エラー:', error);
-      // エラー状態をクリアして初期状態に戻す
       setCalculatedResult('0');
       setExpression('');
       setOperation(null);
@@ -291,10 +302,10 @@ export function Calculator() {
   const updateRealTimeCalculation = async (newExpression: string) => {
     try {
       if (operation && !newExpression.includes('=')) {
-        // @ts-ignore - window.electronAPI は preload.js で定義
-        const result = await window.electronAPI.calculate(newExpression);
-        if (result && !result.error) {
-          setCalculatedResult(String(result.result));
+        const normalizedExpression = newExpression.replace(/×/g, '*').replace(/÷/g, '/');
+        const result = await calculateWithPython(normalizedExpression);
+        if (result && result.intermediate) {
+          setCalculatedResult(result.intermediate);
         }
       }
     } catch (error) {
@@ -474,12 +485,12 @@ export function Calculator() {
     try {
       const result = eval(input.replace('×', '*').replace('÷', '/'))
       if (typeof result === 'number' && !isNaN(result)) {
-        response.content = `計結果は ${result} です。`
+        response.content = `計結果は ${result} です`
       } else {
-        response.content = "申し訳ありません。その計算式は理解できませんした。"
+        response.content = "申し訳ありまん。その計算式は理解できませんした。"
       }
     } catch {
-      response.content = "申し訳ありません。の計は理解きまんでした。"
+      response.content = "申し訳ありません。の計は理解きまんでした"
     }
 
     setMessages([...messages, userMessage, response])
@@ -528,7 +539,7 @@ export function Calculator() {
     if (!quickInput.trim()) return
 
     try {
-      // 入力式をディスプレイ表示
+      // 入力式をディスプレイ示
       const displayExpression = quickInput
         .replace(/\*/g, '×')
         .replace(/\//g, '÷')
@@ -551,7 +562,7 @@ export function Calculator() {
         .replace(/×/g, '*')
         .replace(/÷/g, '/')
         
-      // 三角関数��算（角度をラジアンに変換）
+      // 三角関数算（角度をラジアンに変換）
       calcExpression = calcExpression
         .replace(/sin(\d+)/g, (_, angle) => `Math.sin(${angle} * Math.PI / 180)`)
         .replace(/cos(\d+)/g, (_, angle) => `Math.cos(${angle} * Math.PI / 180)`)
@@ -600,7 +611,7 @@ export function Calculator() {
         value = value.slice(0, -1 - fullMatch.length) + `${func}${angle}` + lastChar
       }
     } else {
-      // 三角関数のパーンを検出
+      // 三角数のパーンを検出
       const trigMatch = value.match(/(sin|cos|tan)(\d+)$/)
       if (trigMatch) {
         const [fullMatch, func, angle] = trigMatch
@@ -913,7 +924,7 @@ export function Calculator() {
                 className="w-full"
                 onClick={() => setIsDarkMode(!isDarkMode)}
               >
-                スク���ョ
+                スクョ
               </Button>
               <Button
                 variant="outline"
@@ -1002,7 +1013,7 @@ export function Calculator() {
                   <Button className={getButtonClass('primary')} onClick={() => appendNumber("4")}>4</Button>
                   <Button className={getButtonClass('primary')} onClick={() => appendNumber("5")}>5</Button>
                   <Button className={getButtonClass('primary')} onClick={() => appendNumber("6")}>6</Button>
-                  <Button className={`${getButtonClass('secondary')} text-xl`} onClick={() => setOperator("×")}>×</Button>
+                  <Button className={`${getButtonClass('secondary')} text-xl`} onClick={() => setOperator("×")}>&#215;</Button>
 
                   <Button variant="ghost" className="bg-slate-100 hover:bg-slate-200 text-slate-800">11</Button>
                   <Button className={getButtonClass('primary')} onClick={() => appendNumber("1")}>1</Button>

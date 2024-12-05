@@ -12,7 +12,7 @@
     "start": "cross-env NODE_ENV=production electron .",
     "lint": "next lint",
     "package": "electron-builder build --win",
-    "clean": "rimraf .next out dist"
+    "clean": "rimraf out dist"
   },
   "dependencies": {
     "@radix-ui/react-scroll-area": "^1.2.1",
