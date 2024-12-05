@@ -129,8 +129,17 @@ export function Calculator() {
       return;
     }
 
+    let newInput: string;
     if (newNumber) {
-      setCurrentInput(number);
+      newInput = number;
+    } else {
+      newInput = currentInput + number;
+    }
+    setCurrentInput(newInput);
+    setCalculatedResult(newInput);
+
+    // 計算履歴（=を含む式）がある場合は維持する
+    if (!expression.includes('=')) {
       if (operation) {
         const newExpression = `${expression}${number}`;
         setExpression(newExpression);
@@ -141,66 +150,25 @@ export function Calculator() {
           console.error('計算エラー:', error);
         }
       } else {
-        if (expression === 'sin' || expression === 'cos' || expression === 'tan') {
-          setExpression(expression + number);
-          setCalculatedResult(number);
-        } else if (expression.startsWith('sin') || expression.startsWith('cos') || expression.startsWith('tan')) {
-          setExpression(expression + number);
-          setCalculatedResult(number);
-        } else {
-          setExpression(number);
-          setCalculatedResult(number);
-          setFullExpression(number);
-        }
-      }
-      setNewNumber(false);
-    } else {
-      const newInput = currentInput === "0" ? number : currentInput + number;
-      setCurrentInput(newInput);
-      if (operation) {
-        const parts = expression.split(' ');
-        parts[parts.length - 1] = newInput;
-        const newExpression = parts.join('');
-        setExpression(newExpression);
-        try {
-          const result = await calculateWithPython(newExpression);
-          setCalculatedResult(String(result));
-        } catch (error) {
-          console.error('計算エラー:', error);
-        }
-      } else {
         if (expression.startsWith('sin') || expression.startsWith('cos') || expression.startsWith('tan')) {
-          const func = expression.slice(0, 3);
-          const restOfExpression = expression.slice(3);
-          if (restOfExpression === "") {
-            setExpression(func + number);
-          } else {
-            setExpression(func + (restOfExpression + number));
-          }
+          setExpression(expression + number);
         } else {
           setExpression(newInput);
-          if (fullExpression === "") {
-            setFullExpression(newInput);
-          }
         }
-        setCalculatedResult(newInput);
       }
     }
+    setNewNumber(false);
   };
 
   // 演算子設定
   const setOperator = async (op: string) => {
     try {
       if (expression.includes('=')) {
-        // =が含まれている場合は、前回の計算結果（result）を使用して新しい計算を開始
-        const result = await calculateWithPython(expression.split('=')[0]);
-        if (result && result.result) {
-          const prevResult = result.result;  // resultを使用
-          setExpression(`${prevResult}${op}`);
-          setPreviousValue(parseFloat(prevResult));
-          // intermediateはそのまま表示を維持
-          setCalculatedResult(calculatedResult);
-        }
+        // =が含まれている場合は、表示されている値（intermediate）から新しい計算を開始
+        const parts = expression.split('=');
+        const displayValue = parts[1]; // intermediateの値
+        setExpression(`${displayValue}${op}`);
+        setPreviousValue(parseFloat(currentInput)); // 実際の計算用の値を保持
       } else if (previousValue === null) {
         const current = currentInput;
         setPreviousValue(parseFloat(current));
@@ -253,22 +221,22 @@ export function Calculator() {
       }
 
       try {
-        // 計算を実行
+        // 計算を��行
         const result = await calculateWithPython(finalExpression);
         if (result && result.result) {
-          const calculatedValue = result.result;
-          // intermediateが存在する場合はそれを表示、なければresultを表示
-          const displayValue = result.intermediate || calculatedValue;
+          const resultValue = result.result;
+          const displayValue = result.intermediate || resultValue;
+          
           setCalculatedResult(displayValue);
           setExpression(`${finalExpression}=${displayValue}`);
           
           const historyEntry = `${finalExpression}=${displayValue}`;
           setCalculatorHistory(prev => [...prev, historyEntry]);
           
-          setPreviousValue(parseFloat(displayValue));
+          setPreviousValue(parseFloat(resultValue));
           setOperation(null);
           setNewNumber(true);
-          setCurrentInput(displayValue);
+          setCurrentInput(resultValue);
           setFullExpression(historyEntry);
         } else {
           throw new Error('計算結果が不正です');
@@ -331,7 +299,7 @@ export function Calculator() {
       setCurrentInput(String(result));
       setIsMillimeterCube(!isMillimeterCube);
     } catch (error) {
-      console.error('単位変換エラー:', error);
+      console.error('単位変換ラー:', error);
     }
   };
 
@@ -342,7 +310,7 @@ export function Calculator() {
     setOperation(null)
     setNewNumber(true)
     setExpression("")
-    // fullExpressionはクリアしない - ACでのクリア
+    // fullExpressionはクリアない - ACでのクリア
   }
 
   const clearAll = () => {
@@ -430,20 +398,24 @@ export function Calculator() {
   const multiplyBy = async (factor: number) => {
     try {
       const current = parseFloat(currentInput);
-      const expression = `${current}×${factor}`;
-      const result = await calculateWithPython(expression);
-      setCalculatedResult(String(result));
+      const calcExpression = `${current}*${factor}`;
+      const result = await calculateWithPython(calcExpression);
       
-      if (operation) {
-        const parts = expression.split(' ');
-        const lastNum = parseFloat(String(parts[parts.length - 1] || current));
-        parts[parts.length - 1] = String(lastNum * factor);
-        setExpression(parts.join(''));
+      // 計算結果を取得
+      const resultValue = result.result || String(current * factor);
+      const displayValue = result.intermediate || resultValue;
+      
+      // 計算履歴がある場合は、intermediateの値に乗算を追加
+      if (expression.includes('=')) {
+        const parts = expression.split('=');
+        const prevDisplay = parts[1]; // 前回の表示値（intermediate）
+        setExpression(`${prevDisplay}×${factor}`);
       } else {
-        setExpression(`${current}×${factor}`);
+        setExpression(`${expression}×${factor}`);
       }
       
-      setCurrentInput(String(result));
+      setCalculatedResult(displayValue);
+      setCurrentInput(resultValue);
       setNewNumber(true);
     } catch (error) {
       console.error('計算エラー:', error);
@@ -480,7 +452,7 @@ export function Calculator() {
         response.content = "申し訳ありまん。その計算式は理できませんした。"
       }
     } catch {
-      response.content = "申し訳りません。の計は理解きまんでした"
+      response.content = "申しません。の計は理解きまんでした"
     }
 
     setMessages([...messages, userMessage, response])
@@ -529,7 +501,7 @@ export function Calculator() {
     if (!quickInput.trim()) return
 
     try {
-      // 入力式をディスプレイ示
+      // 入式をディスプレイ示
       const displayExpression = quickInput
         .replace(/\*/g, '×')
         .replace(/\//g, '÷')
@@ -583,7 +555,7 @@ export function Calculator() {
     if (/^\d+$/.test(value)) {
       try {
         const decimal = new Decimal(value)
-        value = decimal.toString()  // 精度を保持したまま文字列に変換
+        value = decimal.toString()  // 精度を保持したま文字列に変換
       } catch (error) {
         console.error("数値変換エラー:", error)
       }
@@ -601,7 +573,7 @@ export function Calculator() {
         value = value.slice(0, -1 - fullMatch.length) + `${func}${angle}` + lastChar
       }
     } else {
-      // 角数のパーンを検出
+      // 数のパーンを検出
       const trigMatch = value.match(/(sin|cos|tan)(\d+)$/)
       if (trigMatch) {
         const [fullMatch, func, angle] = trigMatch
@@ -641,7 +613,7 @@ export function Calculator() {
 
       e.preventDefault() // デフォトのキー入を防止
 
-      // 数字キー (0-9)
+      // 数ー (0-9)
       if (/^[0-9]$/.test(e.key)) {
         appendNumber(e.key)
       }
@@ -692,7 +664,7 @@ export function Calculator() {
     }
   }, [expression, currentInput, previousValue, operation]) // expressionを依配列に追加
 
-  // 数値を通常記に変換する関数を追加
+  // 数値を通常記に変換する関を追加
   const formatNumber = (num: number | string): string => {
     try {
       const decimal = new Decimal(num)
@@ -704,47 +676,14 @@ export function Calculator() {
 
   // 小数点追加
   const appendDecimal = async () => {
-    if (newNumber) {
-      setCurrentInput("0.");
-      if (operation) {
-        const newExpression = `${expression} 0.`;
-        setExpression(newExpression);
-        try {
-          const result = await calculateWithPython(newExpression);
-          setCalculatedResult(String(result));
-        } catch (error) {
-          console.error('計算ラー:', error);
-        }
-      } else if (expression.startsWith('sin') || expression.startsWith('cos') || expression.startsWith('tan')) {
-        setExpression(expression + "0.");
-      } else {
-        setExpression("0.");
-      }
-      setCalculatedResult("0.");
-      setNewNumber(false);
-    } else {
-      if (!currentInput.includes(".")) {
-        const newInput = currentInput + ".";
-        setCurrentInput(newInput);
-        if (operation) {
-          const parts = expression.split(' ');
-          parts[parts.length - 1] = newInput;
-          const newExpression = parts.join('');
-          setExpression(newExpression);
-          try {
-            const result = await calculateWithPython(newExpression);
-            setCalculatedResult(String(result));
-          } catch (error) {
-            console.error('計算エラー:', error);
-          }
-        } else if (expression.startsWith('sin') || expression.startsWith('cos') || expression.startsWith('tan')) {
-          const func = expression.slice(0, 3);
-          const num = expression.slice(3);
-          setExpression(func + num + ".");
-        } else {
-          setExpression(newInput);
-        }
-        setCalculatedResult(newInput);
+    if (!currentInput.includes(".")) {
+      const newInput = currentInput + ".";
+      setCurrentInput(newInput);
+      setCalculatedResult(newInput);
+      
+      // 既存の式は保持したまま、表示用の式に.を追加
+      if (!expression.includes('=')) {
+        setExpression(expression + ".");
       }
     }
   };
@@ -775,7 +714,7 @@ export function Calculator() {
     const mainContent = document.querySelector('main');
     if (container && mainContent) {
       try {
-        // 実のコンテンツの高さを取得（スクロール可能な高さを含む）
+        // 実のコンテンツの高さを取得（スクロル可能な高さを含む）
         const contentHeight = Math.max(
           container.scrollHeight,
           mainContent.scrollHeight,
@@ -832,7 +771,7 @@ export function Calculator() {
     return () => clearTimeout(timeoutId);
   }, [isRightPanelOpen, handleResize]);
 
-  // 計算結が変更されたときにもリサイズを実行
+  // 計結が変更されたときにもリサイズを実行
   useEffect(() => {
     handleResize();
   }, [calculatedResult, handleResize]);
@@ -851,7 +790,7 @@ export function Calculator() {
       await window.electronAPI.togglePanelSize(willBeOpen);
       setIsRightPanelOpen(willBeOpen);
     } catch (error) {
-      console.error('パネル切り替えエラー:', error);
+      console.error('パル切り替えエラー:', error);
     }
   }, [isRightPanelOpen, rightPanelView]);
 
@@ -993,84 +932,84 @@ export function Calculator() {
               </TooltipProvider>
             </div>
             <div className="grid grid-cols-5 gap-1.5">
-                  <Button variant="ghost" className="bg-slate-100 hover:bg-slate-200 text-slate-800">45°</Button>
-                  <Button className={getButtonClass('primary')} onClick={() => appendNumber("7")}>7</Button>
-                  <Button className={getButtonClass('primary')} onClick={() => appendNumber("8")}>8</Button>
-                  <Button className={getButtonClass('primary')} onClick={() => appendNumber("9")}>9</Button>
-                  <Button className={`${getButtonClass('secondary')} text-xl`} onClick={() => setOperator("÷")}>÷</Button>
+              <Button variant="ghost" className="bg-slate-100 hover:bg-slate-200 text-slate-800" onClick={() => appendNumber("45")}>45°</Button>
+              <Button className={getButtonClass('primary')} onClick={() => appendNumber("7")}>7</Button>
+              <Button className={getButtonClass('primary')} onClick={() => appendNumber("8")}>8</Button>
+              <Button className={getButtonClass('primary')} onClick={() => appendNumber("9")}>9</Button>
+              <Button className={`${getButtonClass('secondary')} text-xl`} onClick={() => setOperator("÷")}>÷</Button>
 
-                  <Button variant="ghost" className="bg-slate-100 hover:bg-slate-200 text-slate-800">22°</Button>
-                  <Button className={getButtonClass('primary')} onClick={() => appendNumber("4")}>4</Button>
-                  <Button className={getButtonClass('primary')} onClick={() => appendNumber("5")}>5</Button>
-                  <Button className={getButtonClass('primary')} onClick={() => appendNumber("6")}>6</Button>
-                  <Button className={`${getButtonClass('secondary')} text-xl`} onClick={() => setOperator("×")}>&#215;</Button>
+              <Button variant="ghost" className="bg-slate-100 hover:bg-slate-200 text-slate-800" onClick={() => appendNumber("22.5")}>22°</Button>
+              <Button className={getButtonClass('primary')} onClick={() => appendNumber("4")}>4</Button>
+              <Button className={getButtonClass('primary')} onClick={() => appendNumber("5")}>5</Button>
+              <Button className={getButtonClass('primary')} onClick={() => appendNumber("6")}>6</Button>
+              <Button className={`${getButtonClass('secondary')} text-xl`} onClick={() => setOperator("×")}>&#215;</Button>
 
-                  <Button variant="ghost" className="bg-slate-100 hover:bg-slate-200 text-slate-800">11</Button>
-                  <Button className={getButtonClass('primary')} onClick={() => appendNumber("1")}>1</Button>
-                  <Button className={getButtonClass('primary')} onClick={() => appendNumber("2")}>2</Button>
-                  <Button className={getButtonClass('primary')} onClick={() => appendNumber("3")}>3</Button>
-                  <Button className={`${getButtonClass('secondary')} text-xl`} onClick={() => setOperator("-")}>-</Button>
+              <Button variant="ghost" className="bg-slate-100 hover:bg-slate-200 text-slate-800" onClick={() => appendNumber("11.25")}>11°</Button>
+              <Button className={getButtonClass('primary')} onClick={() => appendNumber("1")}>1</Button>
+              <Button className={getButtonClass('primary')} onClick={() => appendNumber("2")}>2</Button>
+              <Button className={getButtonClass('primary')} onClick={() => appendNumber("3")}>3</Button>
+              <Button className={`${getButtonClass('secondary')} text-xl`} onClick={() => setOperator("-")}>-</Button>
 
-                  <Button variant="ghost" className="bg-slate-100 hover:bg-slate-200 text-slate-800">5°</Button>
-                  <Button className={getButtonClass('primary')} onClick={() => appendNumber("0")}>0</Button>
-                  <Button className={getButtonClass('primary')} onClick={appendDecimal}>.</Button>
-                  <Button className={getButtonClass('primary')} onClick={appendPi}>π</Button>
-                  <Button className={`${getButtonClass('secondary')} text-xl`} onClick={() => setOperator("+")}>+</Button>
+              <Button variant="ghost" className="bg-slate-100 hover:bg-slate-200 text-slate-800" onClick={() => appendNumber("5.625")}>5°</Button>
+              <Button className={getButtonClass('primary')} onClick={() => appendNumber("0")}>0</Button>
+              <Button className={getButtonClass('primary')} onClick={appendDecimal}>.</Button>
+              <Button className={getButtonClass('primary')} onClick={appendPi}>π</Button>
+              <Button className={`${getButtonClass('secondary')} text-xl`} onClick={() => setOperator("+")}>+</Button>
 
-                  <Button variant="ghost" className="bg-slate-100 hover:bg-slate-200 text-slate-800" onClick={() => appendNumber("00")}>00</Button>
-                  <Button className={getButtonClass('accent')} onClick={del}>DEL</Button>
-                  <Button className={getButtonClass('accent')} onClick={clear}>C</Button>
-                  <Button className={getButtonClass('accent')} onClick={clearAll}>AC</Button>
-                  <Button className={getButtonClass('accent')} onClick={calculateResult}>=</Button>
-                </div>
+              <Button variant="ghost" className="bg-slate-100 hover:bg-slate-200 text-slate-800" onClick={() => appendNumber("00")}>00</Button>
+              <Button className={getButtonClass('accent')} onClick={del}>DEL</Button>
+              <Button className={getButtonClass('accent')} onClick={clear}>C</Button>
+              <Button className={getButtonClass('accent')} onClick={clearAll}>AC</Button>
+              <Button className={getButtonClass('accent')} onClick={calculateResult}>=</Button>
+            </div>
 
-                <div className="grid grid-cols-3 gap-2 mt-2">
-                  <Button className={getButtonClass('accent')} onClick={square}>x²</Button>
-                  <Button className={getButtonClass('accent')} onClick={sin}>sin</Button>
-                  <Button className={getButtonClass('accent')} onClick={cos}>cos</Button>
-                  
-                  <Button className={getButtonClass('accent')} onClick={tan}>tan</Button>
-                  <Button className={getButtonClass('accent')}>(</Button>
-                  <Button className={getButtonClass('accent')}>)</Button>
+            <div className="grid grid-cols-3 gap-2 mt-2">
+              <Button className={getButtonClass('accent')} onClick={square}>x²</Button>
+              <Button className={getButtonClass('accent')} onClick={sin}>sin</Button>
+              <Button className={getButtonClass('accent')} onClick={cos}>cos</Button>
+              
+              <Button className={getButtonClass('accent')} onClick={tan}>tan</Button>
+              <Button className={getButtonClass('accent')}>(</Button>
+              <Button className={getButtonClass('accent')}>)</Button>
 
-                  <Button className={getButtonClass('accent')} onClick={circleArea}>円面積</Button>
-                  <Button className={getButtonClass('accent')} onClick={() => multiplyBy(5)}>×5</Button>
-                  <Button className={getButtonClass('accent')} onClick={() => multiplyBy(2.5)}>×2.5</Button>
-                  <Button className={getButtonClass('accent')} onClick={() => multiplyBy(0.2)}>×0.2</Button>
-                  <Button className={getButtonClass('accent')} onClick={() => multiplyBy(0.4)}>×0.4</Button>
-                  <Button 
-                    className={getButtonClass('accent')} 
-                    onClick={usePreviousResult}
-                    disabled={!previousResult}
-                  >
-                    直前値
-                  </Button>
-                </div>
+              <Button className={getButtonClass('accent')} onClick={circleArea}>円面積</Button>
+              <Button className={getButtonClass('accent')} onClick={() => multiplyBy(5)}>×5</Button>
+              <Button className={getButtonClass('accent')} onClick={() => multiplyBy(2.5)}>×2.5</Button>
+              <Button className={getButtonClass('accent')} onClick={() => multiplyBy(0.2)}>×0.2</Button>
+              <Button className={getButtonClass('accent')} onClick={() => multiplyBy(0.4)}>×0.4</Button>
+              <Button 
+                className={getButtonClass('accent')} 
+                onClick={usePreviousResult}
+                disabled={!previousResult}
+              >
+                直前値
+              </Button>
+            </div>
 
-                <div className="mt-4 flex gap-2">
-                  <Input
-                    placeholder="算を入力してください"
-                    value={quickInput}
-                    onChange={handleQuickInputChange}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        handleQuickSend(e)
-                      }
-                    }}
-                    className={isDarkMode ? 'bg-slate-700 border-slate-600' : ''}
-                  />
-                  <Button onClick={handleQuickSend} size="icon" className={getButtonClass('primary')}>
-                    <Send className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    onClick={handleVoiceInput} 
-                    size="icon" 
-                    className={getButtonClass('primary')}
-                  >
-                    <Mic className="h-4 w-4" />
-                  </Button>
-                </div>
+            <div className="mt-4 flex gap-2">
+              <Input
+                placeholder="算を入力してください"
+                value={quickInput}
+                onChange={handleQuickInputChange}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    handleQuickSend(e)
+                  }
+                }}
+                className={isDarkMode ? 'bg-slate-700 border-slate-600' : ''}
+              />
+              <Button onClick={handleQuickSend} size="icon" className={getButtonClass('primary')}>
+                <Send className="h-4 w-4" />
+              </Button>
+              <Button 
+                onClick={handleVoiceInput} 
+                size="icon" 
+                className={getButtonClass('primary')}
+              >
+                <Mic className="h-4 w-4" />
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -1138,7 +1077,7 @@ export function Calculator() {
                     ) : (
                       messages.map((message, index) => (
                         <div key={index} className="mb-2 text-sm">
-                          <strong>{message.role === "user" ? "あ" : "アシスタント"}:</strong> {message.content}
+                          <strong>{message.role === "user" ? "あ" : "アシスタト"}:</strong> {message.content}
                         </div>
                       ))
                     )}
