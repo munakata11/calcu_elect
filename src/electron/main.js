@@ -17,7 +17,7 @@ function handlePythonProcessError(error) {
 function createWindow() {
   win = new BrowserWindow({
     width: 805,
-    height: 683,
+    height: 682,
     minWidth: 400,
     minHeight: 500,
     webPreferences: {
@@ -129,16 +129,47 @@ app.on('activate', () => {
 // IPCハンドラーの設定
 ipcMain.handle('calculate', async (event, expression) => {
   return new Promise((resolve, reject) => {
-    pythonProcess.stdin.write(JSON.stringify({ expression }) + '\n');
-    
-    pythonProcess.stdout.once('data', (data) => {
+    if (!pythonProcess || pythonProcess.killed) {
+      reject(new Error('Pythonプロセスが利用できません'));
+      return;
+    }
+
+    let responseData = '';
+    const responseHandler = (data) => {
+      responseData += data.toString();
       try {
-        const result = JSON.parse(data.toString());
+        const result = JSON.parse(responseData);
+        pythonProcess.stdout.removeListener('data', responseHandler);
         resolve(result);
       } catch (error) {
-        reject(error);
+        // JSONのパースに失敗した場合は、データが完全に受信されていない可能性があるため継続
       }
-    });
+    };
+
+    pythonProcess.stdout.on('data', responseHandler);
+
+    // エラーハンドリング
+    const errorHandler = (error) => {
+      pythonProcess.stdout.removeListener('data', responseHandler);
+      reject(error);
+    };
+    pythonProcess.once('error', errorHandler);
+
+    // タイムアウト設定
+    const timeout = setTimeout(() => {
+      pythonProcess.stdout.removeListener('data', responseHandler);
+      pythonProcess.removeListener('error', errorHandler);
+      reject(new Error('計算がタイムアウトしました'));
+    }, 5000);
+
+    try {
+      pythonProcess.stdin.write(JSON.stringify({ expression }) + '\n');
+    } catch (error) {
+      clearTimeout(timeout);
+      pythonProcess.stdout.removeListener('data', responseHandler);
+      pythonProcess.removeListener('error', errorHandler);
+      reject(error);
+    }
   });
 });
 

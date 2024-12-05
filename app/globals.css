@@ -140,3 +140,28 @@
   width: auto;
   max-width: 400px;
 }
+
+/* 新しいスタイルを追加 */
+.display {
+  text-align: right;
+  width: 100%;
+  padding: 8px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.history-display {
+  text-align: right;
+  width: 100%;
+  padding: 4px 8px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+/* 数値を表示する要素に適用するスタイル */
+.display-value {
+  direction: ltr;
+  unicode-bidi: bidi-override;
+}

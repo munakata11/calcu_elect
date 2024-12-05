@@ -7,11 +7,12 @@
     "dev": "next dev -p 3000",
     "electron": "cross-env NODE_ENV=development electron .",
     "dev:electron": "concurrently \"npm run dev\" \"wait-on tcp:3000 && npm run electron\"",
-    "build": "next build",
-    "build:electron": "next build && electron-builder",
+    "build": "cross-env NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 NEXT_DISABLE_SOURCEMAPS=1 NEXT_TRACE_ENTRYPOINTS=false next build && next export",
+    "build:electron": "cross-env NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 NEXT_DISABLE_SOURCEMAPS=1 NEXT_TRACE_ENTRYPOINTS=false next build && next export && electron-builder",
     "start": "cross-env NODE_ENV=production electron .",
     "lint": "next lint",
-    "package": "electron-builder build --win"
+    "package": "electron-builder build --win",
+    "clean": "rimraf .next out dist"
   },
   "dependencies": {
     "@radix-ui/react-scroll-area": "^1.2.1",
@@ -41,6 +42,7 @@
     "eslint": "^8",
     "eslint-config-next": "14.2.16",
     "postcss": "^8",
+    "rimraf": "^6.0.1",
     "tailwindcss": "^3.4.1",
     "typescript": "^5",
     "wait-on": "^8.0.1"

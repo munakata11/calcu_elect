@@ -149,7 +149,7 @@ class Calculator:
             self._apply_operator(values_stack, op)
 
         if len(values_stack) != 1:
-            raise ValueError("不正な式です")
+            raise ValueError("不正な���です")
 
         return float(values_stack[0])
 
@@ -180,10 +180,34 @@ class Calculator:
 
     def calculate(self, expression: str) -> Dict[str, Any]:
         try:
+            if not expression or not expression.strip():
+                return {"error": "式が空です"}
+            
+            # 式の前処理
+            expression = expression.strip()
+            
+            # 不正な文字のチェック
+            invalid_chars = set(char for char in expression if not (char.isdigit() or char.isalpha() or char in '+-*/().× ÷'))
+            if invalid_chars:
+                return {"error": f"不正な文字が含まれています: {', '.join(invalid_chars)}"}
+            
             result = self._safe_eval(expression)
-            return {"result": str(result)}  # 文字列として返す
-        except Exception as e:
+            
+            # 結果の検証
+            if isinstance(result, complex):
+                return {"error": "複素数は計算できません"}
+            if abs(result) > 1e308:  # DBL_MAXを超える値
+                return {"error": "計算結果が大きすぎます"}
+            
+            return {"result": str(result)}
+        except ValueError as e:
             return {"error": str(e)}
+        except ZeroDivisionError:
+            return {"error": "0で除算することはできません"}
+        except OverflowError:
+            return {"error": "計算結果が大きすぎます"}
+        except Exception as e:
+            return {"error": f"計算エラー: {str(e)}"}
 
     def convert_unit(self, value: float, conversion_type: str) -> Dict[str, Any]:
         try:

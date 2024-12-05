@@ -17,16 +17,36 @@ export const useCalculator = () => {
 
   const calculate = async (expression: string) => {
     try {
+      if (!window.electronAPI?.calculate) {
+        throw new Error('計算機能が利用できません');
+      }
+
       const response = await window.electronAPI.calculate(expression);
+      
+      if ('error' in response && response.error) {
+        setError(response.error);
+        setResult(null);
+        return;
+      }
+      
       if ('result' in response && response.result) {
-        setResult(parseFloat(response.result));
-        setError(null);
+        const numericResult = parseFloat(response.result);
+        if (isNaN(numericResult)) {
+          setError('不正な計算結果です');
+          setResult(null);
+        } else {
+          setResult(numericResult);
+          setError(null);
+        }
       } else {
-        setError(response.error ?? '計算結果が不正です');
+        setError('計算結果が不正です');
         setResult(null);
       }
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : '不明なエラーが発生しました';
+      console.error('計算エラー:', error);
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : '計算中に予期せぬエラーが発生しました';
       setError(errorMessage);
       setResult(null);
     }

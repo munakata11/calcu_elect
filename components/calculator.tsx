@@ -95,7 +95,7 @@ export function Calculator() {
         conversion: conversionType
       }));
       if (!result || result.error) {
-        throw new Error(result?.error || '単位変換エラーが発生しました');
+        throw new Error(result?.error || '単位エラーが発生しました');
       }
       if (!result.result) {
         throw new Error('単位変換結果が不正です');
@@ -252,7 +252,7 @@ export function Calculator() {
     try {
       let finalExpression = expression;
       
-      // すでに計算結果が示されている場合は何もしない
+      // すでに計算結果が示されている場合は何もない
       if (expression.includes('=')) {
         return;
       }
@@ -275,7 +275,7 @@ export function Calculator() {
       setCalculatedResult(String(result));
       setExpression(`${finalExpression} = ${result}`);
       
-      // 履歴に追加
+      // 計算結果を履歴に追加
       const historyEntry = `${finalExpression} = ${result}`;
       setCalculatorHistory(prev => [...prev, historyEntry]);
       
@@ -364,7 +364,7 @@ export function Calculator() {
         setCalculatedResult(expression.slice(3, -1) || "0")
         setCurrentInput(expression.slice(3, -1) || "0")
       } else {
-        // 三角関部分のみの場合は全てクリア
+        // 三角関部分みの場合は全てクリア
         clear()
       }
     } else if (expression.length > 1) {
@@ -810,7 +810,7 @@ export function Calculator() {
     }
   }, [isRightPanelOpen]);
 
-  // 計算機の内容が変更されたときにリサイズを実行
+  // 計算機の容が変更されたときにリサイズを実行
   useEffect(() => {
     const resizeObserver = new ResizeObserver((entries) => {
       // 少し遅延を入れてアニメーション完了後にリサイズ
@@ -968,10 +968,10 @@ export function Calculator() {
             </div>
             <div className="flex gap-2 mb-3">
               <div className={`flex-1 rounded-lg ${isDarkMode ? 'bg-slate-700' : colorSchemes[colorScheme].display} p-4 h-[100px] shadow-inner overflow-hidden`}>
-                <div className={`text-right text-sm text-muted-foreground min-h-[1.25rem] whitespace-nowrap overflow-x-auto calculator-display ${isDisplayOverflowing ? 'opacity-0' : ''}`} style={{ direction: 'rtl' }}>
+                <div className={`text-right text-sm text-muted-foreground min-h-[1.25rem] whitespace-nowrap overflow-x-auto calculator-display ${isDisplayOverflowing ? 'opacity-0' : ''}`}>
                   {expression}
                 </div>
-                <div className={`text-right text-4xl font-bold tabular-nums overflow-y-hidden overflow-x-auto whitespace-nowrap ${rightPanelView === 'extended-display' && isDisplayOverflowing ? 'opacity-0' : ''}`} style={{ direction: 'rtl' }}>
+                <div className={`text-right text-4xl font-bold tabular-nums overflow-y-hidden overflow-x-auto whitespace-nowrap ${rightPanelView === 'extended-display' && isDisplayOverflowing ? 'opacity-0' : ''}`}>
                   {formatNumber(calculatedResult)}
                 </div>
               </div>
@@ -1114,7 +1114,7 @@ export function Calculator() {
                   <div className="text-right text-sm text-muted-foreground min-h-[1.25rem] break-all whitespace-pre-wrap">
                     {expression}
                   </div>
-                  <div className="text-right text-4xl font-bold tabular-nums overflow-y-hidden overflow-x-auto whitespace-nowrap" style={{ direction: 'rtl' }}>
+                  <div className="text-right text-4xl font-bold tabular-nums overflow-y-hidden overflow-x-auto whitespace-nowrap" style={{ direction: 'ltr' }}>
                     {formatNumber(calculatedResult)}
                   </div>
                 </div>
@@ -1188,7 +1188,7 @@ export function Calculator() {
               ) : (
                 <ScrollArea className="h-[550px]">
                   {calculatorHistory.map((entry, index) => (
-                    <div key={index} className="mb-2 text-sm">
+                    <div key={index} className="mb-2 text-sm text-right" style={{ direction: 'ltr' }}>
                       {entry}
                     </div>
                   ))}
