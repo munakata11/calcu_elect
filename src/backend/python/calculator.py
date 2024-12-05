@@ -28,7 +28,7 @@ def calculate(expression):
                 return {"result": expression, "intermediate": expression}
 
         # 式が演算子で終わっている場合は、式をそのまま返す
-        if expression[-1] in '+-×÷':
+        if expression[-1] in '+-×÷*/':
             last_calc = get_last_complete_calculation(expression)
             return {
                 "result": expression,
@@ -70,7 +70,7 @@ def get_last_complete_calculation(expression):
     """最後の完全な計算部分を取得して計算"""
     try:
         # 式が演算子で終わっている場合は、その前までを計算
-        if expression[-1] in '+-×÷':
+        if expression[-1] in '+-×÷*/':
             expression = expression[:-1]
 
         # 式を標準形式に変換して計算
@@ -124,7 +124,7 @@ def format_number(number):
         return None
 
 def format_result(number):
-    """結果を適切な形式にフ��ーマット"""
+    """��果を適切な形式にフォーマット"""
     try:
         formatted = format_number(number)
         if formatted is None:

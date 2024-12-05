@@ -191,27 +191,23 @@ export function Calculator() {
   // 演算子設定
   const setOperator = async (op: string) => {
     try {
-      if (previousValue === null) {
-        const trigFuncs = ['sin', 'cos', 'tan'];
-        const hasTrigFunc = trigFuncs.some(func => expression.startsWith(func));
-        
-        if (hasTrigFunc) {
-          const normalizedExpression = expression.replace(/×/g, '*').replace(/÷/g, '/');
-          const result = await calculateWithPython(normalizedExpression);
-          setPreviousValue(parseFloat(result.result));
-          setCalculatedResult(result.result);
-          const newExpression = `${expression}${op}`;
-          setExpression(newExpression);
-          setFullExpression(fullExpression === "" ? expression : `${fullExpression}${op}`);
-        } else {
-          const current = parseFloat(currentInput);
-          setPreviousValue(current);
-          setCalculatedResult(String(current));
-          const newExpression = `${currentInput}${op}`;
-          setExpression(newExpression);
-          setFullExpression(fullExpression === "" ? currentInput : `${fullExpression}${op}`);
+      if (expression.includes('=')) {
+        // =が含まれている場合は、前回の計算結果（result）を使用して新しい計算を開始
+        const result = await calculateWithPython(expression.split('=')[0]);
+        if (result && result.result) {
+          const prevResult = result.result;  // resultを使用
+          setExpression(`${prevResult}${op}`);
+          setPreviousValue(parseFloat(prevResult));
+          // intermediateはそのまま表示を維持
+          setCalculatedResult(calculatedResult);
         }
-      } else if (operation) {
+      } else if (previousValue === null) {
+        const current = currentInput;
+        setPreviousValue(parseFloat(current));
+        const newExpression = `${current}${op}`;
+        setExpression(newExpression);
+        setFullExpression(fullExpression === "" ? current : `${fullExpression}${op}`);
+      } else {
         // 演算子が既に存在する場合は、新しい演算子に置き換える
         const lastChar = expression.slice(-1);
         if (['+', '-', '×', '÷'].includes(lastChar)) {
@@ -220,26 +216,19 @@ export function Calculator() {
           setOperation(op);
           return;
         }
-
-        const normalizedExpression = expression.replace(/×/g, '*').replace(/÷/g, '/');
-        const result = await calculateWithPython(normalizedExpression);
-        setPreviousValue(parseFloat(result.result));
-        setCalculatedResult(result.result);
         
-        setFullExpression(`${fullExpression}${result.result}${op}`);
-        setExpression(`${result.result}${op}`);
+        // 現在の式に演算子を追加
+        setExpression(`${expression}${op}`);
+        setFullExpression(`${fullExpression}${op}`);
       }
       setOperation(op);
       setNewNumber(true);
-      setCurrentInput("0");
     } catch (error) {
-      console.error('計算エラー:', error);
-      setCalculatedResult('0');
+      console.error('演算子設定エラー:', error);
       setExpression('');
       setOperation(null);
       setPreviousValue(null);
       setNewNumber(true);
-      setCurrentInput('0');
       setFullExpression('');
     }
   };
@@ -263,27 +252,28 @@ export function Calculator() {
         finalExpression = finalExpression.slice(0, -1);
       }
 
-      // 演算子を標準形式に変換
-      const normalizedExpression = finalExpression.replace(/×/g, '*').replace(/÷/g, '/');
-
-      // @ts-ignore - window.electronAPI は preload.js で定義
-      const result = await window.electronAPI.calculate(normalizedExpression);
-      if (result) {
-        const calculatedValue = result.intermediate || result.result;
-        if (calculatedValue) {
-          setCalculatedResult(calculatedValue);
-          setExpression(`${finalExpression}=${calculatedValue}`);
+      try {
+        // 計算を実行
+        const result = await calculateWithPython(finalExpression);
+        if (result && result.result) {
+          const calculatedValue = result.result;
+          // intermediateが存在する場合はそれを表示、なければresultを表示
+          const displayValue = result.intermediate || calculatedValue;
+          setCalculatedResult(displayValue);
+          setExpression(`${finalExpression}=${displayValue}`);
           
-          const historyEntry = `${finalExpression}=${calculatedValue}`;
+          const historyEntry = `${finalExpression}=${displayValue}`;
           setCalculatorHistory(prev => [...prev, historyEntry]);
           
-          setPreviousValue(parseFloat(calculatedValue));
+          setPreviousValue(parseFloat(displayValue));
           setOperation(null);
           setNewNumber(true);
-          setCurrentInput(calculatedValue);
+          setCurrentInput(displayValue);
           setFullExpression(historyEntry);
+        } else {
+          throw new Error('計算結果が不正です');
         }
-      } else {
+      } catch (error) {
         throw new Error('計算エラーが発生しました');
       }
     } catch (error) {
@@ -352,7 +342,7 @@ export function Calculator() {
     setOperation(null)
     setNewNumber(true)
     setExpression("")
-    // fullExpressionはクリアしない - ACでのみクリア
+    // fullExpressionはクリアしない - ACでのクリア
   }
 
   const clearAll = () => {
@@ -371,7 +361,7 @@ export function Calculator() {
         setCalculatedResult(expression.slice(3, -1) || "0")
         setCurrentInput(expression.slice(3, -1) || "0")
       } else {
-        // 三角関部分みの場合は全てクリア
+        // 三角���部分みの場合は全てクリア
         clear()
       }
     } else if (expression.length > 1) {
@@ -428,7 +418,7 @@ export function Calculator() {
   const circleArea = () => {
     try {
       const radius = new Decimal(currentInput)
-      const result = radius.times(radius).times(Decimal.acos(-1)) // Decimal.acos(-1) は π
+      const result = radius.times(radius).times(Decimal.acos(-1)) // Decimal.acos(-1) は ��
       setCurrentInput(result.toString())
       setCalculatedResult(result.toString())
       setNewNumber(true)
@@ -487,10 +477,10 @@ export function Calculator() {
       if (typeof result === 'number' && !isNaN(result)) {
         response.content = `計結果は ${result} です`
       } else {
-        response.content = "申し訳ありまん。その計算式は理解できませんした。"
+        response.content = "申し訳ありまん。その計算式は理できませんした。"
       }
     } catch {
-      response.content = "申し訳ありません。の計は理解きまんでした"
+      response.content = "申し訳りません。の計は理解きまんでした"
     }
 
     setMessages([...messages, userMessage, response])
@@ -611,7 +601,7 @@ export function Calculator() {
         value = value.slice(0, -1 - fullMatch.length) + `${func}${angle}` + lastChar
       }
     } else {
-      // 三角数のパーンを検出
+      // 角数のパーンを検出
       const trigMatch = value.match(/(sin|cos|tan)(\d+)$/)
       if (trigMatch) {
         const [fullMatch, func, angle] = trigMatch
@@ -649,7 +639,7 @@ export function Calculator() {
         return
       }
 
-      e.preventDefault() // デフォトのキー入力を防止
+      e.preventDefault() // デフォトのキー入を防止
 
       // 数字キー (0-9)
       if (/^[0-9]$/.test(e.key)) {
@@ -702,7 +692,7 @@ export function Calculator() {
     }
   }, [expression, currentInput, previousValue, operation]) // expressionを依配列に追加
 
-  // 数値を通常表記に変換する関数を追加
+  // 数値を通常記に変換する関数を追加
   const formatNumber = (num: number | string): string => {
     try {
       const decimal = new Decimal(num)
@@ -801,7 +791,7 @@ export function Calculator() {
         // @ts-ignore
         await window.electron.resizeWindow(contentWidth, contentHeight);
         
-        // デバッグ用ログ
+        // バッグ用ロ
         console.log('Size update:', {
           contentWidth,
           contentHeight,
@@ -820,7 +810,7 @@ export function Calculator() {
   // 計算機の容が更されたときにリサイズを実行
   useEffect(() => {
     const resizeObserver = new ResizeObserver((entries) => {
-      // し遅延を入れてアニメーション完了後にリサイズ
+      // し延を入れてアニメーション完了後にリサイズ
       setTimeout(handleResize, 100);
     });
 
@@ -842,7 +832,7 @@ export function Calculator() {
     return () => clearTimeout(timeoutId);
   }, [isRightPanelOpen, handleResize]);
 
-  // 計算結果が変更されたときにもリサイズを実行
+  // 計算結が変更されたときにもリサイズを実行
   useEffect(() => {
     handleResize();
   }, [calculatedResult, handleResize]);
@@ -930,7 +920,7 @@ export function Calculator() {
                 variant="outline"
                 className="w-full"
               >
-                延長取
+                延長
               </Button>
               <Button
                 variant="outline"
@@ -1059,7 +1049,7 @@ export function Calculator() {
 
                 <div className="mt-4 flex gap-2">
                   <Input
-                    placeholder="算式を入力してください"
+                    placeholder="算��を入力してください"
                     value={quickInput}
                     onChange={handleQuickInputChange}
                     onKeyDown={(e) => {
