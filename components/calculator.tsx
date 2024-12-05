@@ -102,7 +102,7 @@ export function Calculator() {
     }
   };
 
-  // 単位変換をリクエストする関数
+  // 単位変換をリクエ��トする関数
   const convertUnit = async (value: number, conversionType: string): Promise<number> => {
     try {
       // @ts-ignore - window.electronAPI は preload.js で定義
@@ -361,7 +361,7 @@ export function Calculator() {
         setCalculatedResult(expression.slice(3, -1) || "0")
         setCurrentInput(expression.slice(3, -1) || "0")
       } else {
-        // 三角���部分みの場合は全てクリア
+        // 三角部分みの場合は全てクリア
         clear()
       }
     } else if (expression.length > 1) {
@@ -418,7 +418,7 @@ export function Calculator() {
   const circleArea = () => {
     try {
       const radius = new Decimal(currentInput)
-      const result = radius.times(radius).times(Decimal.acos(-1)) // Decimal.acos(-1) は ��
+      const result = radius.times(radius).times(Decimal.acos(-1)) // Decimal.acos(-1) は 
       setCurrentInput(result.toString())
       setCalculatedResult(result.toString())
       setNewNumber(true)
@@ -1049,7 +1049,7 @@ export function Calculator() {
 
                 <div className="mt-4 flex gap-2">
                   <Input
-                    placeholder="算��を入力してください"
+                    placeholder="算を入力してください"
                     value={quickInput}
                     onChange={handleQuickInputChange}
                     onKeyDown={(e) => {
@@ -1185,7 +1185,7 @@ export function Calculator() {
               ) : (
                 <ScrollArea className="h-[550px]">
                   {calculatorHistory.map((entry, index) => (
-                    <div key={index} className="mb-2 text-sm text-right" style={{ direction: 'ltr' }}>
+                    <div key={index} className="mb-2 text-sm text-left" style={{ direction: 'ltr' }}>
                       {entry}
                     </div>
                   ))}

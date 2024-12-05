@@ -22,23 +22,23 @@ def calculate(expression):
             try:
                 result = eval_expression(normalized_expression)
                 if isinstance(result, str):
-                    return {"result": expression, "intermediate": expression}
-                return {"result": format_number(result), "intermediate": expression}
+                    return {"result": convert_operators(expression), "intermediate": expression}
+                return {"result": convert_operators(format_number(result)), "intermediate": expression}
             except:
-                return {"result": expression, "intermediate": expression}
+                return {"result": convert_operators(expression), "intermediate": expression}
 
         # 式が演算子で終わっている場合は、式をそのまま返す
         if expression[-1] in '+-×÷*/':
             last_calc = get_last_complete_calculation(expression)
             return {
-                "result": expression,
+                "result": convert_operators(expression),
                 "intermediate": last_calc if last_calc else expression[:-1]
             }
 
         # 通常の途中計算
         last_calc = get_last_complete_calculation(expression)
         return {
-            "result": expression,
+            "result": convert_operators(expression),
             "intermediate": last_calc if last_calc else expression
         }
 
@@ -124,7 +124,7 @@ def format_number(number):
         return None
 
 def format_result(number):
-    """��果を適切な形式にフォーマット"""
+    """果を適切な形式にフォーマット"""
     try:
         formatted = format_number(number)
         if formatted is None:
@@ -132,6 +132,10 @@ def format_result(number):
         return {"result": formatted}
     except:
         return {"error": "結果のフォーマットに失敗しました"}
+
+def convert_operators(expression):
+    """演算子を×や÷に変換"""
+    return expression.replace('*', '×').replace('/', '÷')
 
 def main():
     while True:
