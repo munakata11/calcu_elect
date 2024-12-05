@@ -41,6 +41,11 @@ interface SpeechRecognitionEvent {
   };
 }
 
+// 数式から空白を削除する
+const removeSpaces = (expr: string) => {
+  return expr.replace(/\s+/g, '');
+};
+
 export function Calculator() {
   const [display, setDisplay] = useState("0")
   const [memory, setMemory] = useState(0)
@@ -95,7 +100,7 @@ export function Calculator() {
         conversion: conversionType
       }));
       if (!result || result.error) {
-        throw new Error(result?.error || '単位エラーが発生しました');
+        throw new Error(result?.error || '単位が発生しました');
       }
       if (!result.result) {
         throw new Error('単位変換結果が不正です');
@@ -116,7 +121,7 @@ export function Calculator() {
     if (newNumber) {
       setCurrentInput(number);
       if (operation) {
-        const newExpression = `${expression} ${number}`;
+        const newExpression = `${expression}${number}`;
         setExpression(newExpression);
         try {
           const result = await calculateWithPython(newExpression);
@@ -144,7 +149,7 @@ export function Calculator() {
       if (operation) {
         const parts = expression.split(' ');
         parts[parts.length - 1] = newInput;
-        const newExpression = parts.join(' ');
+        const newExpression = parts.join('');
         setExpression(newExpression);
         try {
           const result = await calculateWithPython(newExpression);
@@ -172,40 +177,8 @@ export function Calculator() {
     }
   };
 
-  // 演子設定
+  // 演算子設定
   const setOperator = async (op: string) => {
-    if (currentInput === "0" && expression === "") {
-      return;
-    }
-
-    if (expression.includes('=')) {
-      const result = calculatedResult;
-      const newExpression = `${result} ${op}`;
-      setExpression(newExpression);
-      setFullExpression(`${result} ${op}`);
-      setPreviousValue(parseFloat(result));
-      setOperation(op);
-      setNewNumber(true);
-      setCurrentInput("0");
-      return;
-    }
-
-    const expressionParts = expression.trim().split(' ');
-    const lastPart = expressionParts[expressionParts.length - 1];
-
-    if (['+', '-', '×', '÷'].includes(lastPart)) {
-      expressionParts[expressionParts.length - 1] = op;
-      const newExpression = expressionParts.join(' ');
-      setExpression(newExpression);
-      
-      const fullExpressionParts = fullExpression.trim().split(' ');
-      fullExpressionParts[fullExpressionParts.length - 1] = op;
-      setFullExpression(fullExpressionParts.join(' '));
-      
-      setOperation(op);
-      return;
-    }
-
     try {
       if (previousValue === null) {
         const trigFuncs = ['sin', 'cos', 'tan'];
@@ -215,31 +188,43 @@ export function Calculator() {
           const result = await calculateWithPython(expression);
           setPreviousValue(result);
           setCalculatedResult(String(result));
-          const newExpression = `${expression} ${op}`;
+          const newExpression = `${expression}${op}`;
           setExpression(newExpression);
-          setFullExpression(fullExpression === "" ? expression : `${fullExpression} ${op}`);
+          setFullExpression(fullExpression === "" ? expression : `${fullExpression}${op}`);
         } else {
           const current = parseFloat(currentInput);
           setPreviousValue(current);
           setCalculatedResult(String(current));
-          const newExpression = `${currentInput} ${op}`;
+          const newExpression = `${currentInput}${op}`;
           setExpression(newExpression);
-          setFullExpression(fullExpression === "" ? currentInput : `${fullExpression} ${op}`);
+          setFullExpression(fullExpression === "" ? currentInput : `${fullExpression}${op}`);
         }
       } else if (operation) {
         const current = parseFloat(currentInput);
-        const result = await calculateWithPython(`${previousValue} ${operation} ${current}`);
+        // 演算子を変換してから計算式を作成
+        const normalizedOperation = operation
+          .replace('×', '*')
+          .replace('÷', '/');
+        const result = await calculateWithPython(`${previousValue}${normalizedOperation}${current}`);
         setPreviousValue(result);
         setCalculatedResult(String(result));
         
-        setFullExpression(`${fullExpression} ${current} ${op}`);
-        setExpression(`${expression} ${op}`);
+        setFullExpression(`${fullExpression}${current}${op}`);
+        setExpression(`${result}${op}`);
       }
       setOperation(op);
       setNewNumber(true);
       setCurrentInput("0");
     } catch (error) {
       console.error('計算エラー:', error);
+      // エラー状態をクリアして初期状態に戻す
+      setCalculatedResult('0');
+      setExpression('');
+      setOperation(null);
+      setPreviousValue(null);
+      setNewNumber(true);
+      setCurrentInput('0');
+      setFullExpression('');
     }
   };
 
@@ -252,12 +237,10 @@ export function Calculator() {
     try {
       let finalExpression = expression;
       
-      // すでに計算結果が示されている場合は何もない
       if (expression.includes('=')) {
         return;
       }
 
-      // 演算子が入力されている場合、現在の入力値を式に追加
       if (operation) {
         const current = currentInput;
         const parts = expression.split(' ');
@@ -268,29 +251,39 @@ export function Calculator() {
         }
       }
 
-      // 計算実行
-      const result = await calculateWithPython(finalExpression);
-      
-      // 結果を表示
-      setCalculatedResult(String(result));
-      setExpression(`${finalExpression} = ${result}`);
-      
-      // 計算結果を履歴に追加
-      const historyEntry = `${finalExpression} = ${result}`;
-      setCalculatorHistory(prev => [...prev, historyEntry]);
-      
-      // 状態をリセット
-      setPreviousValue(result);
-      setOperation(null);
-      setNewNumber(true);
-      setCurrentInput(String(result));
-      setFullExpression(historyEntry);
+      // 演算子を変換
+      finalExpression = finalExpression
+        .replace(/×/g, '*')
+        .replace(/÷/g, '/');
 
+      // @ts-ignore - window.electronAPI は preload.js で定義
+      const result = await window.electronAPI.calculate(finalExpression);
+      if (result && result.result) {
+        const calculatedValue = result.result;
+        setCalculatedResult(String(calculatedValue));
+        setExpression(`${expression}=${calculatedValue}`);
+        
+        const historyEntry = `${expression}=${calculatedValue}`;
+        setCalculatorHistory(prev => [...prev, historyEntry]);
+        
+        setPreviousValue(parseFloat(calculatedValue));
+        setOperation(null);
+        setNewNumber(true);
+        setCurrentInput(String(calculatedValue));
+        setFullExpression(historyEntry);
+      } else {
+        throw new Error(result?.error || '計算エラーが発生しました');
+      }
     } catch (error) {
       console.error('計算エラー:', error);
-      setCalculatedResult('Error');
-      setExpression('Error');
+      // エラー状態をクリアして初期状態に戻す
+      setCalculatedResult('0');
+      setExpression('');
+      setOperation(null);
+      setPreviousValue(null);
       setNewNumber(true);
+      setCurrentInput('0');
+      setFullExpression('');
     }
   };
 
@@ -298,15 +291,18 @@ export function Calculator() {
   const updateRealTimeCalculation = async (newExpression: string) => {
     try {
       if (operation && !newExpression.includes('=')) {
-        const result = await calculateWithPython(newExpression);
-        setCalculatedResult(String(result));
+        // @ts-ignore - window.electronAPI は preload.js で定義
+        const result = await window.electronAPI.calculate(newExpression);
+        if (result && !result.error) {
+          setCalculatedResult(String(result.result));
+        }
       }
     } catch (error) {
       console.error('リアルタイム計算エラー:', error);
     }
   };
 
-  // 数値入力時にアルタイム計算を実行
+  // 数値入力時にアルタム計算を実行
   useEffect(() => {
     if (operation && !expression.includes('=')) {
       updateRealTimeCalculation(expression);
@@ -433,7 +429,7 @@ export function Calculator() {
   const multiplyBy = async (factor: number) => {
     try {
       const current = parseFloat(currentInput);
-      const expression = `${current} × ${factor}`;
+      const expression = `${current}×${factor}`;
       const result = await calculateWithPython(expression);
       setCalculatedResult(String(result));
       
@@ -441,9 +437,9 @@ export function Calculator() {
         const parts = expression.split(' ');
         const lastNum = parseFloat(String(parts[parts.length - 1] || current));
         parts[parts.length - 1] = String(lastNum * factor);
-        setExpression(parts.join(' '));
+        setExpression(parts.join(''));
       } else {
-        setExpression(`${current} × ${factor}`);
+        setExpression(`${current}×${factor}`);
       }
       
       setCurrentInput(String(result));
@@ -480,10 +476,10 @@ export function Calculator() {
       if (typeof result === 'number' && !isNaN(result)) {
         response.content = `計結果は ${result} です。`
       } else {
-        response.content = "申し訳ありません。その計算式は理解できませんでした。"
+        response.content = "申し訳ありません。その計算式は理解できませんした。"
       }
     } catch {
-      response.content = "申し訳ありません。の計は理解できませんでした。"
+      response.content = "申し訳ありません。の計は理解きまんでした。"
     }
 
     setMessages([...messages, userMessage, response])
@@ -555,7 +551,7 @@ export function Calculator() {
         .replace(/×/g, '*')
         .replace(/÷/g, '/')
         
-      // 三角関数計算（角度をラジアンに変換）
+      // 三角関数��算（角度をラジアンに変換）
       calcExpression = calcExpression
         .replace(/sin(\d+)/g, (_, angle) => `Math.sin(${angle} * Math.PI / 180)`)
         .replace(/cos(\d+)/g, (_, angle) => `Math.cos(${angle} * Math.PI / 180)`)
@@ -592,7 +588,7 @@ export function Calculator() {
       }
     }
 
-    // 既存の処理（三角関数など）
+    // 既存の処理三角関数など）
     const lastChar = value.slice(-1)
 
     // 四則演算記号入力された場合の処理
@@ -604,7 +600,7 @@ export function Calculator() {
         value = value.slice(0, -1 - fullMatch.length) + `${func}${angle}` + lastChar
       }
     } else {
-      // 三角関数のパターンを検出
+      // 三角関数のパーンを検出
       const trigMatch = value.match(/(sin|cos|tan)(\d+)$/)
       if (trigMatch) {
         const [fullMatch, func, angle] = trigMatch
@@ -642,7 +638,7 @@ export function Calculator() {
         return
       }
 
-      e.preventDefault() // デフォルトのキー入力を防止
+      e.preventDefault() // デフォトのキー入力を防止
 
       // 数字キー (0-9)
       if (/^[0-9]$/.test(e.key)) {
@@ -693,7 +689,7 @@ export function Calculator() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [expression, currentInput, previousValue, operation]) // expressionを依存配列に追加
+  }, [expression, currentInput, previousValue, operation]) // expressionを依配列に追加
 
   // 数値を通常表記に変換する関数を追加
   const formatNumber = (num: number | string): string => {
@@ -716,7 +712,7 @@ export function Calculator() {
           const result = await calculateWithPython(newExpression);
           setCalculatedResult(String(result));
         } catch (error) {
-          console.error('計算エラー:', error);
+          console.error('計算ラー:', error);
         }
       } else if (expression.startsWith('sin') || expression.startsWith('cos') || expression.startsWith('tan')) {
         setExpression(expression + "0.");
@@ -732,7 +728,7 @@ export function Calculator() {
         if (operation) {
           const parts = expression.split(' ');
           parts[parts.length - 1] = newInput;
-          const newExpression = parts.join(' ');
+          const newExpression = parts.join('');
           setExpression(newExpression);
           try {
             const result = await calculateWithPython(newExpression);
@@ -810,10 +806,10 @@ export function Calculator() {
     }
   }, [isRightPanelOpen]);
 
-  // 計算機の容が変更されたときにリサイズを実行
+  // 計算機の容が更されたときにリサイズを実行
   useEffect(() => {
     const resizeObserver = new ResizeObserver((entries) => {
-      // 少し遅延を入れてアニメーション完了後にリサイズ
+      // し遅延を入れてアニメーション完了後にリサイズ
       setTimeout(handleResize, 100);
     });
 
@@ -893,7 +889,7 @@ export function Calculator() {
       setRightPanelView('extended-display');
       if (!isRightPanelOpen) {
         setIsRightPanelOpen(true);
-        // @ts-ignore - window.electronAPI は preload.js で定義
+        // @ts-ignore - window.electronAPI は preload.js で義
         await window.electronAPI.togglePanelSize(true);
       }
     }
@@ -917,13 +913,13 @@ export function Calculator() {
                 className="w-full"
                 onClick={() => setIsDarkMode(!isDarkMode)}
               >
-                スクショ
+                スク���ョ
               </Button>
               <Button
                 variant="outline"
                 className="w-full"
               >
-                延長取得
+                延長取
               </Button>
               <Button
                 variant="outline"
@@ -969,7 +965,7 @@ export function Calculator() {
             <div className="flex gap-2 mb-3">
               <div className={`flex-1 rounded-lg ${isDarkMode ? 'bg-slate-700' : colorSchemes[colorScheme].display} p-4 h-[100px] shadow-inner overflow-hidden`}>
                 <div className={`text-right text-sm text-muted-foreground min-h-[1.25rem] whitespace-nowrap overflow-x-auto calculator-display ${isDisplayOverflowing ? 'opacity-0' : ''}`}>
-                  {expression}
+                  {removeSpaces(expression)}
                 </div>
                 <div className={`text-right text-4xl font-bold tabular-nums overflow-y-hidden overflow-x-auto whitespace-nowrap ${rightPanelView === 'extended-display' && isDisplayOverflowing ? 'opacity-0' : ''}`}>
                   {formatNumber(calculatedResult)}
@@ -1008,7 +1004,7 @@ export function Calculator() {
                   <Button className={getButtonClass('primary')} onClick={() => appendNumber("6")}>6</Button>
                   <Button className={`${getButtonClass('secondary')} text-xl`} onClick={() => setOperator("×")}>×</Button>
 
-                  <Button variant="ghost" className="bg-slate-100 hover:bg-slate-200 text-slate-800">11°</Button>
+                  <Button variant="ghost" className="bg-slate-100 hover:bg-slate-200 text-slate-800">11</Button>
                   <Button className={getButtonClass('primary')} onClick={() => appendNumber("1")}>1</Button>
                   <Button className={getButtonClass('primary')} onClick={() => appendNumber("2")}>2</Button>
                   <Button className={getButtonClass('primary')} onClick={() => appendNumber("3")}>3</Button>
@@ -1112,7 +1108,7 @@ export function Calculator() {
               {rightPanelView === 'extended-display' && isDisplayOverflowing ? (
                 <div className={`rounded-lg ${isDarkMode ? 'bg-slate-700' : colorSchemes[colorScheme].display} p-4 shadow-inner overflow-hidden mb-4`}>
                   <div className="text-right text-sm text-muted-foreground min-h-[1.25rem] break-all whitespace-pre-wrap">
-                    {expression}
+                    {removeSpaces(expression)}
                   </div>
                   <div className="text-right text-4xl font-bold tabular-nums overflow-y-hidden overflow-x-auto whitespace-nowrap" style={{ direction: 'ltr' }}>
                     {formatNumber(calculatedResult)}

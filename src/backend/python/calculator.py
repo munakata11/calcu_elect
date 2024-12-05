@@ -1,239 +1,122 @@
-import sys
-import json
-import operator
 import math
-from decimal import Decimal, getcontext
-from typing import Dict, Any, Union, Callable
+import json
+import sys
 
-# 高精度計算のための設定
-getcontext().prec = 28
-
-class Calculator:
-    def __init__(self):
-        # 基本演算子
-        self.operators = {
-            '+': operator.add,
-            '-': operator.sub,
-            '*': operator.mul,
-            '/': operator.truediv,
-            '**': operator.pow,
-        }
+def calculate(expression):
+    try:
+        # デバッグ用：受け取った式の型と内容を出力
+        print(json.dumps({
+            "debug": f"受け取った式: {expression}, 型: {type(expression)}"
+        }), file=sys.stderr)
         
-        # 数学関数
-        self.functions = {
-            'sin': lambda x: math.sin(math.radians(x)),  # 度数法で計算
-            'cos': lambda x: math.cos(math.radians(x)),
-            'tan': lambda x: math.tan(math.radians(x)),
-            'square': lambda x: x ** 2,
-            'sqrt': math.sqrt,
-            'circle_area': lambda r: math.pi * r ** 2,
-        }
-        
-        # 単位変換
-        self.conversions = {
-            'mm_to_m': lambda x: x / 1000,
-            'm_to_mm': lambda x: x * 1000,
-            'mm3_to_m3': lambda x: x / 1_000_000_000,
-            'm3_to_mm3': lambda x: x * 1_000_000_000,
-        }
+        if not expression:
+            return {"error": "式が空です"}
 
-    def _safe_eval(self, expression: str) -> float:
+        # 文字列型に変換（JSON経由で来る場合の対応）
+        if not isinstance(expression, str):
+            expression = str(expression)
+
+        # 空白を削除
+        expression = expression.strip()
+
+        # =を含む場合は=の前の部分だけを計算
+        if '=' in expression:
+            expression = expression.split('=')[0]
+
+        # 三角関数の処理
+        for func in ['sin', 'cos', 'tan']:
+            if expression.startswith(func):
+                try:
+                    angle = float(expression[3:])
+                    result = getattr(math, func)(math.radians(angle))
+                    return format_result(result)
+                except:
+                    return {"error": "三角関数の計算でエラーが発生しました"}
+
+        # 掛け算・割り算の記号を置換（全角記号対応）
+        expression = (expression
+            .replace('×', '*')
+            .replace('÷', '/')
+            .replace('－', '-')
+            .replace('＋', '+')
+            .replace('（', '(')
+            .replace('）', ')')
+        )
+
+        # デバッグ用：変換後の式と型を出力
+        print(json.dumps({
+            "debug": f"変換後の式: {expression}, 型: {type(expression)}"
+        }), file=sys.stderr)
+
+        # 数式を評価
+        result = eval_expression(expression)
+        return format_result(result)
+
+    except Exception as e:
+        return {"error": f"計算エラー: {str(e)}"}
+
+def eval_expression(expression):
+    try:
+        # 使用可能な文字をチェック
+        allowed = set('0123456789.+-*/()× ÷')
+        if not all(c in allowed for c in expression):
+            raise ValueError("不正な文字が含まれています")
+
         try:
-            # 数式を分解
-            tokens = self._tokenize(expression)
-            # 数式を評価
-            return self._evaluate_tokens(tokens)
+            # 式を評価（組み込み関数へのアクセスを制限）
+            result = float(eval(expression, {"__builtins__": {}}, {}))
+            
+            # 結果の検証
+            if math.isnan(result) or math.isinf(result):
+                raise ValueError("無効な計算結果です")
+                
+            return result
+            
+        except SyntaxError:
+            raise ValueError("不正な式です")
+        except ZeroDivisionError:
+            raise ValueError("0での除算はできません")
         except Exception as e:
             raise ValueError(f"計算エラー: {str(e)}")
 
-    def _tokenize(self, expression: str) -> list:
-        # 特殊関数と演算子を処理
-        expression = expression.replace('×', '*').replace('÷', '/')
-        tokens = []
-        current = ''
-        
-        i = 0
-        while i < len(expression):
-            char = expression[i]
-            
-            # 数字または小数点の処理
-            if char.isdigit() or char == '.':
-                current += char
-            
-            # 演算子の処理
-            elif char in self.operators or char in '()':
-                if current:
-                    tokens.append(current)
-                    current = ''
-                tokens.append(char)
-            
-            # 関数名の処理
-            elif char.isalpha():
-                func_name = ''
-                while i < len(expression) and expression[i].isalpha():
-                    func_name += expression[i]
-                    i += 1
-                i -= 1  # ループで増加する分を調整
-                
-                if func_name in self.functions:
-                    tokens.append(func_name)
-                else:
-                    raise ValueError(f"不明な関数です: {func_name}")
-            
-            # スペースは無視
-            elif char.isspace():
-                if current:
-                    tokens.append(current)
-                    current = ''
-            
-            else:
-                raise ValueError(f"不正な文字です: {char}")
-            
-            i += 1
-        
-        if current:
-            tokens.append(current)
-        
-        return tokens
+    except Exception as e:
+        raise ValueError(f"計算エラー: {str(e)}")
 
-    def _evaluate_tokens(self, tokens: list) -> float:
-        if not tokens:
-            raise ValueError("空の式は評価できません")
+def format_result(number):
+    """結果を適切な形式にフォーマット"""
+    try:
+        # 整数かどうかをチェック
+        if float(number).is_integer():
+            return {"result": str(int(number))}
+        else:
+            # 小数点以下の不要な0を削除
+            return {"result": f"{float(number):g}"}
+    except:
+        return {"error": "結果のフォーマットに失敗しました"}
 
-        # 数式を評価するスタック
-        values_stack = []
-        operators_stack = []
-        
-        i = 0
-        while i < len(tokens):
-            token = tokens[i]
-            
-            # 数値の処理
-            if self._is_number(token):
-                values_stack.append(Decimal(token))
-            
-            # 関数の処理
-            elif token in self.functions:
-                if i + 1 >= len(tokens):
-                    raise ValueError(f"関数 {token} の引数が不足しています")
-                arg = Decimal(tokens[i + 1])
-                result = Decimal(str(self.functions[token](float(arg))))
-                values_stack.append(result)
-                i += 1
-            
-            # 演算子の処理
-            elif token in self.operators:
-                while (operators_stack and operators_stack[-1] != '(' and
-                       self._precedence(operators_stack[-1]) >= self._precedence(token)):
-                    self._apply_operator(values_stack, operators_stack.pop())
-                operators_stack.append(token)
-            
-            # 括弧の処理
-            elif token == '(':
-                operators_stack.append(token)
-            elif token == ')':
-                while operators_stack and operators_stack[-1] != '(':
-                    self._apply_operator(values_stack, operators_stack.pop())
-                if operators_stack and operators_stack[-1] == '(':
-                    operators_stack.pop()
-                else:
-                    raise ValueError("括弧の対応が不正です")
-            
-            i += 1
-
-        # 残りの演算子を処理
-        while operators_stack:
-            op = operators_stack.pop()
-            if op == '(':
-                raise ValueError("括弧の対応が不正です")
-            self._apply_operator(values_stack, op)
-
-        if len(values_stack) != 1:
-            raise ValueError("不正な���です")
-
-        return float(values_stack[0])
-
-    def _is_number(self, token: str) -> bool:
+def main():
+    while True:
         try:
-            Decimal(token)
-            return True
-        except:
-            return False
+            # 標準入力から式を読み込む
+            line = sys.stdin.readline().strip()
+            if not line:
+                continue
 
-    def _precedence(self, op: str) -> int:
-        if op in {'+', '-'}:
-            return 1
-        if op in {'*', '/'}:
-            return 2
-        if op == '**':
-            return 3
-        return 0
+            # デバッグ用：受け取った入力の内容を出力
+            print(json.dumps({
+                "debug": f"受け取った入力: {line}, 型: {type(line)}"
+            }), file=sys.stderr)
 
-    def _apply_operator(self, values: list, op: str) -> None:
-        if len(values) < 2:
-            raise ValueError("演算子の引数が不足しています")
-        b = values.pop()
-        a = values.pop()
-        if op == '/' and b == 0:
-            raise ValueError("0での除算はできません")
-        values.append(Decimal(str(self.operators[op](float(a), float(b)))))
-
-    def calculate(self, expression: str) -> Dict[str, Any]:
-        try:
-            if not expression or not expression.strip():
-                return {"error": "式が空です"}
+            # 計算を実行
+            result = calculate(line)
             
-            # 式の前処理
-            expression = expression.strip()
-            
-            # 不正な文字のチェック
-            invalid_chars = set(char for char in expression if not (char.isdigit() or char.isalpha() or char in '+-*/().× ÷'))
-            if invalid_chars:
-                return {"error": f"不正な文字が含まれています: {', '.join(invalid_chars)}"}
-            
-            result = self._safe_eval(expression)
-            
-            # 結果の検証
-            if isinstance(result, complex):
-                return {"error": "複素数は計算できません"}
-            if abs(result) > 1e308:  # DBL_MAXを超える値
-                return {"error": "計算結果が大きすぎます"}
-            
-            return {"result": str(result)}
-        except ValueError as e:
-            return {"error": str(e)}
-        except ZeroDivisionError:
-            return {"error": "0で除算することはできません"}
-        except OverflowError:
-            return {"error": "計算結果が大きすぎます"}
-        except Exception as e:
-            return {"error": f"計算エラー: {str(e)}"}
-
-    def convert_unit(self, value: float, conversion_type: str) -> Dict[str, Any]:
-        try:
-            if conversion_type not in self.conversions:
-                raise ValueError(f"不正な変換タイプです: {conversion_type}")
-            result = self.conversions[conversion_type](value)
-            return {"result": str(result)}
-        except Exception as e:
-            return {"error": str(e)}
-
-if __name__ == "__main__":
-    calculator = Calculator()
-    for line in sys.stdin:
-        try:
-            data = json.loads(line)
-            if "expression" in data:
-                result = calculator.calculate(data["expression"])
-            elif "conversion" in data:
-                result = calculator.convert_unit(
-                    float(data["value"]),
-                    data["conversion"]
-                )
-            else:
-                result = {"error": "不正なリクエストです"}
+            # 結果を出力
             print(json.dumps(result))
             sys.stdout.flush()
+
         except Exception as e:
             print(json.dumps({"error": str(e)}))
-            sys.stdout.flush() 
+            sys.stdout.flush()
+
+if __name__ == "__main__":
+    main() 

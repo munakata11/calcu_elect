@@ -138,9 +138,23 @@ ipcMain.handle('calculate', async (event, expression) => {
     const responseHandler = (data) => {
       responseData += data.toString();
       try {
-        const result = JSON.parse(responseData);
-        pythonProcess.stdout.removeListener('data', responseHandler);
-        resolve(result);
+        // 改行で分割して最後の有効なJSONを探す
+        const lines = responseData.split('\n');
+        for (const line of lines) {
+          if (line.trim()) {
+            try {
+              const result = JSON.parse(line);
+              pythonProcess.stdout.removeListener('data', responseHandler);
+              pythonProcess.removeListener('error', errorHandler);
+              clearTimeout(timeout);
+              resolve(result);
+              return;
+            } catch (e) {
+              // このラインは有効なJSONではない、次のラインを試す
+              continue;
+            }
+          }
+        }
       } catch (error) {
         // JSONのパースに失敗した場合は、データが完全に受信されていない可能性があるため継続
       }
@@ -151,19 +165,21 @@ ipcMain.handle('calculate', async (event, expression) => {
     // エラーハンドリング
     const errorHandler = (error) => {
       pythonProcess.stdout.removeListener('data', responseHandler);
+      clearTimeout(timeout);
       reject(error);
     };
     pythonProcess.once('error', errorHandler);
 
-    // タイムアウト設定
+    // タイムアウト設定（30秒に延長）
     const timeout = setTimeout(() => {
       pythonProcess.stdout.removeListener('data', responseHandler);
       pythonProcess.removeListener('error', errorHandler);
       reject(new Error('計算がタイムアウトしました'));
-    }, 5000);
+    }, 30000);
 
     try {
-      pythonProcess.stdin.write(JSON.stringify({ expression }) + '\n');
+      // 式を直接送信（改行を含めて一度に送信）
+      pythonProcess.stdin.write(expression + '\n');
     } catch (error) {
       clearTimeout(timeout);
       pythonProcess.stdout.removeListener('data', responseHandler);

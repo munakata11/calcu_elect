@@ -1,33 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'export',
-  distDir: 'out',
-  images: {
-    unoptimized: true,
-  },
-  experimental: {
-    forceSwcTransforms: true,
-    disableOptimizedLoading: true,
+  eslint: {
+    ignoreDuringBuilds: true,
   },
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
+  experimental: {
+    forceSwcTransforms: true,
   },
-  trailingSlash: true,
-  productionBrowserSourceMaps: false,
-  reactStrictMode: false,
-  webpack: (config) => {
-    config.resolve.fallback = {
-      ...config.resolve.fallback,
-      fs: false,
-      path: false,
-    };
-    return config;
-  },
+  distDir: 'out',
   swcMinify: true,
-  poweredByHeader: false,
+  reactStrictMode: false
 }
 
 module.exports = nextConfig 
