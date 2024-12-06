@@ -221,7 +221,7 @@ export function Calculator() {
       }
 
       try {
-        // 計算を��行
+        // 計算を行
         const result = await calculateWithPython(finalExpression);
         if (result && result.result) {
           const resultValue = result.result;
@@ -405,7 +405,7 @@ export function Calculator() {
       const resultValue = result.result || String(current * factor);
       const displayValue = result.intermediate || resultValue;
       
-      // 計算履歴がある場合は、intermediateの値に乗算を追加
+      // 計算履歴がある場���は、intermediateの値に乗算を追加
       if (expression.includes('=')) {
         const parts = expression.split('=');
         const prevDisplay = parts[1]; // 前回の表示値（intermediate）
@@ -524,7 +524,7 @@ export function Calculator() {
         .replace(/×/g, '*')
         .replace(/÷/g, '/')
         
-      // 三角関数算（角度をラジアンに変換）
+      // 三角関数算（角度をラジアンに変換
       calcExpression = calcExpression
         .replace(/sin(\d+)/g, (_, angle) => `Math.sin(${angle} * Math.PI / 180)`)
         .replace(/cos(\d+)/g, (_, angle) => `Math.cos(${angle} * Math.PI / 180)`)
@@ -640,6 +640,32 @@ export function Calculator() {
       }
       else if (e.key.toLowerCase() === 't') {
         tan()
+      }
+      // 角度のショートカットキー
+      else if (e.key.toLowerCase() === 'q') {
+        appendNumber("45")
+      }
+      else if (e.key.toLowerCase() === 'w') {
+        appendNumber("22.5")
+      }
+      else if (e.key.toLowerCase() === 'e') {
+        appendNumber("11.25")
+      }
+      else if (e.key.toLowerCase() === 'r') {
+        appendNumber("5.625")
+      }
+      // 乗算のショートカットキー
+      else if (e.key.toLowerCase() === 'o') {
+        multiplyBy(5)
+      }
+      else if (e.key.toLowerCase() === 'p') {
+        multiplyBy(2.5)
+      }
+      else if (e.key === '@') {
+        multiplyBy(0.2)
+      }
+      else if (e.key === '[') {
+        multiplyBy(0.4)
       }
       // イコール (Enter)
       else if (e.key === 'Enter' || e.key === '=') {
@@ -771,7 +797,7 @@ export function Calculator() {
     return () => clearTimeout(timeoutId);
   }, [isRightPanelOpen, handleResize]);
 
-  // 計結が変更されたときにもリサイズを実行
+  // 計が変更されたときにもリサイズを実行
   useEffect(() => {
     handleResize();
   }, [calculatedResult, handleResize]);
