@@ -102,7 +102,7 @@ export function Calculator() {
     }
   };
 
-  // 単位変換をリクエ��トする関数
+  // 単位変換をリクエストする関数
   const convertUnit = async (value: number, conversionType: string): Promise<number> => {
     try {
       // @ts-ignore - window.electronAPI は preload.js で定義
@@ -135,25 +135,31 @@ export function Calculator() {
     } else {
       newInput = currentInput + number;
     }
-    setCurrentInput(newInput);
-    setCalculatedResult(newInput);
-
-    // 計算履歴（=を含む式）がある場合は維持する
-    if (!expression.includes('=')) {
-      if (operation) {
-        const newExpression = `${expression}${number}`;
-        setExpression(newExpression);
-        try {
-          const result = await calculateWithPython(newExpression);
-          setCalculatedResult(String(result));
-        } catch (error) {
-          console.error('計算エラー:', error);
-        }
-      } else {
-        if (expression.startsWith('sin') || expression.startsWith('cos') || expression.startsWith('tan')) {
-          setExpression(expression + number);
+    
+    // 括弧が開始された後の数字入力の場合
+    if (expression.startsWith('(') && currentInput === "0") {
+      setCurrentInput(number);
+      setCalculatedResult(number);
+      setExpression(expression + number);
+    } else {
+      setCurrentInput(newInput);
+      setCalculatedResult(newInput);
+      if (!expression.includes('=')) {
+        if (operation) {
+          const newExpression = `${expression}${number}`;
+          setExpression(newExpression);
+          try {
+            const result = await calculateWithPython(newExpression);
+            setCalculatedResult(String(result));
+          } catch (error) {
+            console.error('計算エラー:', error);
+          }
         } else {
-          setExpression(newInput);
+          if (expression.startsWith('sin') || expression.startsWith('cos') || expression.startsWith('tan')) {
+            setExpression(expression + number);
+          } else {
+            setExpression(newInput);
+          }
         }
       }
     }
@@ -172,7 +178,8 @@ export function Calculator() {
       } else if (previousValue === null) {
         const current = currentInput;
         setPreviousValue(parseFloat(current));
-        const newExpression = `${current}${op}`;
+        // 既存の式（括弧を含む）を保持���たまま演算子を追加
+        const newExpression = expression === "" ? current + op : expression + op;
         setExpression(newExpression);
         setFullExpression(fullExpression === "" ? current : `${fullExpression}${op}`);
       } else {
@@ -214,7 +221,7 @@ export function Calculator() {
         return;
       }
 
-      // 演算子で終わっている場合は、最後の演算子を除去
+      // 演算子で終わって���る場合は、最後の演算子を除去
       const lastChar = finalExpression.slice(-1);
       if (['+', '-', '×', '÷'].includes(lastChar)) {
         finalExpression = finalExpression.slice(0, -1);
@@ -259,7 +266,11 @@ export function Calculator() {
   // リアルタイム計算
   const updateRealTimeCalculation = async (newExpression: string) => {
     try {
-      if (operation && !newExpression.includes('=')) {
+      // 開いている括弧がある場合は計算しない
+      const openParenCount = (newExpression.match(/\(/g) || []).length;
+      const closeParenCount = (newExpression.match(/\)/g) || []).length;
+      
+      if (operation && !newExpression.includes('=') && openParenCount === closeParenCount) {
         const normalizedExpression = newExpression.replace(/×/g, '*').replace(/÷/g, '/');
         const result = await calculateWithPython(normalizedExpression);
         if (result && result.intermediate) {
@@ -405,7 +416,7 @@ export function Calculator() {
       const resultValue = result.result || String(current * factor);
       const displayValue = result.intermediate || resultValue;
       
-      // 計算履歴がある場���は、intermediateの値に乗算を追加
+      // 計算履歴がある場合は、intermediateの値に乗算を追加
       if (expression.includes('=')) {
         const parts = expression.split('=');
         const prevDisplay = parts[1]; // 前回の表示値（intermediate）
@@ -540,7 +551,7 @@ export function Calculator() {
     } catch (error) {
       setMessages([...messages, 
         { role: "user", content: quickInput },
-        { role: "assistant", content: "計算式が正しくありません。" }
+        { role: "assistant", content: "計算式が正しくありませ。" }
       ])
     }
 
@@ -557,7 +568,7 @@ export function Calculator() {
         const decimal = new Decimal(value)
         value = decimal.toString()  // 精度を保持したま文字列に変換
       } catch (error) {
-        console.error("数値変換エラー:", error)
+        console.error("値変換エラー:", error)
       }
     }
 
@@ -579,7 +590,7 @@ export function Calculator() {
         const [fullMatch, func, angle] = trigMatch
         value = value.slice(0, -trigMatch[0].length) + `${func}${angle}`
       } else {
-        // 単独のs,c,tを変換
+        // 単独のs,c,t変換
         if (['s', 'c', 't'].includes(lastChar.toLowerCase())) {
           const prefix = value.slice(0, -1)
           switch (lastChar.toLowerCase()) {
@@ -597,11 +608,52 @@ export function Calculator() {
       }
     }
 
-    // 数字四則演算記号、三角関数のみを許可
+    // 数字四則算記号、三角関のみを許可
     if (value === '' || /^[\d+\-×÷*/\s.sincostan]+$/.test(value)) {
       setQuickInput(value)
     }
   }
+
+  // 括弧を追加する関数
+  const appendParenthesis = (type: '(' | ')') => {
+    if (type === '(') {
+      // 左括弧の場合
+      if (currentInput === "0") {
+        // 0の状態のときは計算履歴にのみ追加
+        setExpression("(");
+      } else {
+        // それ以外は通常通り追加
+        const newInput = currentInput + type;
+        setCurrentInput(newInput);
+        setCalculatedResult(newInput);
+        if (!expression.includes('=')) {
+          setExpression(expression + type);
+        }
+      }
+      setNewNumber(false);
+    } else {
+      // 右括弧の場合、左括弧が存在する場合のみ追加可能
+      const openParenCount = (expression.match(/\(/g) || []).length;
+      const closeParenCount = (expression.match(/\)/g) || []).length;
+      
+      if (openParenCount > closeParenCount) {
+        const newInput = currentInput + type;
+        setCurrentInput(newInput);
+        setCalculatedResult(newInput);
+        if (!expression.includes('=')) {
+          setExpression(expression + type);
+        }
+        setNewNumber(false);
+      }
+    }
+  };
+
+  // 括弧���タンの無効化状態を確する関数
+  const isCloseParenDisabled = () => {
+    const openParenCount = (expression.match(/\(/g) || []).length;
+    const closeParenCount = (expression.match(/\)/g) || []).length;
+    return openParenCount <= closeParenCount;
+  };
 
   // キーボードイベントのハンドラーを修正
   useEffect(() => {
@@ -611,9 +663,9 @@ export function Calculator() {
         return
       }
 
-      e.preventDefault() // デフォトのキー入を防止
+      e.preventDefault() // デフォルトのキー入力を防止
 
-      // 数ー (0-9)
+      // 数字 (0-9)
       if (/^[0-9]$/.test(e.key)) {
         appendNumber(e.key)
       }
@@ -641,7 +693,7 @@ export function Calculator() {
       else if (e.key.toLowerCase() === 't') {
         tan()
       }
-      // 角度のショートカットキー
+      // 角のショートカットキー
       else if (e.key.toLowerCase() === 'q') {
         appendNumber("45")
       }
@@ -666,6 +718,20 @@ export function Calculator() {
       }
       else if (e.key === '[') {
         multiplyBy(0.4)
+      }
+      // πと二乗のショートカットキー
+      else if (e.key === '\\') {
+        appendPi()
+      }
+      else if (e.key === '^') {
+        square()
+      }
+      // 括弧のショートカットキー
+      else if (e.key === '(') {
+        appendParenthesis('(')
+      }
+      else if (e.key === ')') {
+        appendParenthesis(')')
       }
       // イコール (Enter)
       else if (e.key === 'Enter' || e.key === '=') {
@@ -694,13 +760,13 @@ export function Calculator() {
   const formatNumber = (num: number | string): string => {
     try {
       const decimal = new Decimal(num)
-      return decimal.toFixed() // 科学表記を使用せずに表示
+      return decimal.toFixed() // 科学表記を使用せず表示
     } catch {
       return String(num)
     }
   }
 
-  // 小数点追加
+  // 数点追加
   const appendDecimal = async () => {
     if (!currentInput.includes(".")) {
       const newInput = currentInput + ".";
@@ -740,7 +806,7 @@ export function Calculator() {
     const mainContent = document.querySelector('main');
     if (container && mainContent) {
       try {
-        // 実のコンテンツの高さを取得（スクロル可能な高さを含む）
+        // のコンテンツの高さを取得（スクロル可能な高さを含む）
         const contentHeight = Math.max(
           container.scrollHeight,
           mainContent.scrollHeight,
@@ -995,8 +1061,14 @@ export function Calculator() {
               <Button className={getButtonClass('accent')} onClick={cos}>cos</Button>
               
               <Button className={getButtonClass('accent')} onClick={tan}>tan</Button>
-              <Button className={getButtonClass('accent')}>(</Button>
-              <Button className={getButtonClass('accent')}>)</Button>
+              <Button 
+                className={getButtonClass('accent')}
+                onClick={() => appendParenthesis('(')}
+              >(</Button>
+              <Button 
+                className={getButtonClass('accent')}
+                onClick={() => appendParenthesis(')')}
+              >)</Button>
 
               <Button className={getButtonClass('accent')} onClick={circleArea}>円面積</Button>
               <Button className={getButtonClass('accent')} onClick={() => multiplyBy(5)}>×5</Button>
@@ -1008,7 +1080,7 @@ export function Calculator() {
                 onClick={usePreviousResult}
                 disabled={!previousResult}
               >
-                直前値
+                直前
               </Button>
             </div>
 
@@ -1050,7 +1122,7 @@ export function Calculator() {
                     className={`${rightPanelView === 'chat' ? 'bg-slate-100 dark:bg-slate-700' : ''} hover:bg-slate-100 dark:hover:bg-slate-700`}
                     onClick={() => setRightPanelView('chat')}
                   >
-                    チャット
+                    チット
                   </Button>
                   <Button
                     variant="ghost"
