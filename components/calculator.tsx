@@ -136,33 +136,34 @@ export function Calculator() {
       newInput = currentInput + number;
     }
     
-    // 括弧が開始された後の数字入力の場合
+    let newExpression: string;
     if (expression.startsWith('(') && currentInput === "0") {
-      setCurrentInput(number);
-      setCalculatedResult(number);
-      setExpression(expression + number);
+      // 括弧の後の最初の数字入力
+      newExpression = expression + number;
+    } else if (operation || expression.includes('(')) {
+      // 演算子の後、または括弧を含む式の続きの入力
+      newExpression = expression + number;
     } else {
-      setCurrentInput(newInput);
-      setCalculatedResult(newInput);
-      if (!expression.includes('=')) {
-        if (operation) {
-          const newExpression = `${expression}${number}`;
-          setExpression(newExpression);
-          try {
-            const result = await calculateWithPython(newExpression);
-            setCalculatedResult(String(result));
-          } catch (error) {
-            console.error('計算エラー:', error);
-          }
-        } else {
-          if (expression.startsWith('sin') || expression.startsWith('cos') || expression.startsWith('tan')) {
-            setExpression(expression + number);
-          } else {
-            setExpression(newInput);
-          }
-        }
-      }
+      // 通常の数字入力
+      newExpression = expression === "" ? number : expression + number;
     }
+
+    setCurrentInput(newInput);
+    setExpression(newExpression);
+
+    // リアルタイム計算を実行
+    try {
+      const result = await calculateWithPython(newExpression);
+      if (result && result.intermediate) {
+        setCalculatedResult(result.intermediate);
+      } else {
+        setCalculatedResult(newInput);
+      }
+    } catch (error) {
+      console.error('計算エラー:', error);
+      setCalculatedResult(newInput);
+    }
+    
     setNewNumber(false);
   };
 
@@ -170,20 +171,31 @@ export function Calculator() {
   const setOperator = async (op: string) => {
     try {
       if (expression.includes('=')) {
-        // =が含まれている場合は、表示されている値（intermediate）から新しい計算を開始
         const parts = expression.split('=');
-        const displayValue = parts[1]; // intermediateの値
+        const displayValue = parts[1];
         setExpression(`${displayValue}${op}`);
-        setPreviousValue(parseFloat(currentInput)); // 実際の計算用の値を保持
+        setPreviousValue(parseFloat(currentInput));
       } else if (previousValue === null) {
         const current = currentInput;
         setPreviousValue(parseFloat(current));
-        // 既存の式（括弧を含む）を保持���たまま演算子を追加
         const newExpression = expression === "" ? current + op : expression + op;
         setExpression(newExpression);
         setFullExpression(fullExpression === "" ? current : `${fullExpression}${op}`);
+        
+        // 括弧を含む式の場合、括弧内の計算結果を表示
+        if (expression.includes('(')) {
+          try {
+            const result = await calculateWithPython(expression);
+            if (result && result.intermediate) {
+              setCalculatedResult(result.intermediate);
+            }
+          } catch (error) {
+            console.error('中間計算エラー:', error);
+          }
+        } else {
+          setCalculatedResult(current);
+        }
       } else {
-        // 演算子が既に存在する場合は、新しい演算子に置き換える
         const lastChar = expression.slice(-1);
         if (['+', '-', '×', '÷'].includes(lastChar)) {
           const newExpression = expression.slice(0, -1) + op;
@@ -192,9 +204,19 @@ export function Calculator() {
           return;
         }
         
-        // 現在の式に演算子を追加
         setExpression(`${expression}${op}`);
         setFullExpression(`${fullExpression}${op}`);
+        
+        // 現在の式の中間結果を計算して表示（括弧を含む場合は括弧内の計算結果）
+        try {
+          const expressionForCalc = expression.includes('(') ? expression : expression + op;
+          const result = await calculateWithPython(expressionForCalc);
+          if (result && result.intermediate) {
+            setCalculatedResult(result.intermediate);
+          }
+        } catch (error) {
+          console.error('中間計算エラー:', error);
+        }
       }
       setOperation(op);
       setNewNumber(true);
@@ -221,7 +243,7 @@ export function Calculator() {
         return;
       }
 
-      // 演算子で終わって���る場合は、最後の演算子を除去
+      // 演算子で終わってる場合は、最後の演算子を除去
       const lastChar = finalExpression.slice(-1);
       if (['+', '-', '×', '÷'].includes(lastChar)) {
         finalExpression = finalExpression.slice(0, -1);
@@ -331,26 +353,50 @@ export function Calculator() {
     setFullExpression("")
   }
 
-  const del = () => {
+  const del = async () => {
     if (expression.startsWith('sin') || expression.startsWith('cos') || expression.startsWith('tan')) {
-      // 三角関数の入力中の合
+      // 三角関数の入力中の場合
       if (expression.length > 3) {
-        // 数字部分ある場合は最後の数字を削除
-        setExpression(expression.slice(0, -1))
-        setCalculatedResult(expression.slice(3, -1) || "0")
-        setCurrentInput(expression.slice(3, -1) || "0")
+        // 数字部分がある場合は最後の数字を削除
+        const newExpression = expression.slice(0, -1);
+        setExpression(newExpression);
+        try {
+          const result = await calculateWithPython(newExpression);
+          if (result && result.intermediate) {
+            setCalculatedResult(result.intermediate);
+          } else {
+            setCalculatedResult(newExpression.slice(3) || "0");
+          }
+        } catch (error) {
+          console.error('計算エラー:', error);
+          setCalculatedResult(newExpression.slice(3) || "0");
+        }
+        setCurrentInput(newExpression.slice(3) || "0");
       } else {
-        // 三角部分みの場合は全てクリア
-        clear()
+        // 三角関数部分のみの場合は全てクリア
+        clear();
       }
     } else if (expression.length > 1) {
-      setExpression(expression.slice(0, -1))
-      setCalculatedResult(expression.slice(0, -1))
-      setCurrentInput(expression.slice(0, -1))
+      const newExpression = expression.slice(0, -1);
+      setExpression(newExpression);
+      
+      // 新しい式でリアルタイム計算を実行
+      try {
+        const result = await calculateWithPython(newExpression);
+        if (result && result.intermediate) {
+          setCalculatedResult(result.intermediate);
+        } else {
+          setCalculatedResult(newExpression);
+        }
+      } catch (error) {
+        console.error('計算エラー:', error);
+        setCalculatedResult(newExpression);
+      }
+      setCurrentInput(newExpression);
     } else {
-      clear()
+      clear();
     }
-  }
+  };
 
   const square = () => {
     try {
@@ -360,7 +406,7 @@ export function Calculator() {
       setCalculatedResult(result.toString())
       setNewNumber(true)
     } catch (error) {
-      console.error("計算エラー:", error)
+      console.error("算エラー:", error)
     }
   }
 
@@ -409,8 +455,9 @@ export function Calculator() {
   const multiplyBy = async (factor: number) => {
     try {
       const current = parseFloat(currentInput);
-      const calcExpression = `${current}*${factor}`;
-      const result = await calculateWithPython(calcExpression);
+      const calcExpression = currentInput === "0" ? `0×${factor}` : `${current}×${factor}`;
+      const normalizedExpression = calcExpression.replace('×', '*');
+      const result = await calculateWithPython(normalizedExpression);
       
       // 計算結果を取得
       const resultValue = result.result || String(current * factor);
@@ -422,7 +469,7 @@ export function Calculator() {
         const prevDisplay = parts[1]; // 前回の表示値（intermediate）
         setExpression(`${prevDisplay}×${factor}`);
       } else {
-        setExpression(`${expression}×${factor}`);
+        setExpression(calcExpression);
       }
       
       setCalculatedResult(displayValue);
@@ -460,7 +507,7 @@ export function Calculator() {
       if (typeof result === 'number' && !isNaN(result)) {
         response.content = `計結果は ${result} です`
       } else {
-        response.content = "申し訳ありまん。その計算式は理できませんした。"
+        response.content = "申訳ありまん。その計算式は理できませんした。"
       }
     } catch {
       response.content = "申しません。の計は理解きまんでした"
@@ -615,40 +662,49 @@ export function Calculator() {
   }
 
   // 括弧を追加する関数
-  const appendParenthesis = (type: '(' | ')') => {
+  const appendParenthesis = async (type: '(' | ')') => {
     if (type === '(') {
       // 左括弧の場合
-      if (currentInput === "0") {
-        // 0の状態のときは計算履歴にのみ追加
-        setExpression("(");
-      } else {
-        // それ以外は通常通り追加
-        const newInput = currentInput + type;
-        setCurrentInput(newInput);
-        setCalculatedResult(newInput);
-        if (!expression.includes('=')) {
-          setExpression(expression + type);
+      const newExpression = expression + type;
+      setExpression(newExpression);
+      setCurrentInput(type);  // 括弧も現在の入力として保持
+      try {
+        const result = await calculateWithPython(newExpression);
+        if (result && result.intermediate) {
+          setCalculatedResult(result.intermediate);
+        } else {
+          setCalculatedResult(currentInput);
         }
+      } catch (error) {
+        console.error('計算エラー:', error);
+        setCalculatedResult(currentInput);
       }
-      setNewNumber(false);
     } else {
       // 右括弧の場合、左括弧が存在する場合のみ追加可能
       const openParenCount = (expression.match(/\(/g) || []).length;
       const closeParenCount = (expression.match(/\)/g) || []).length;
       
       if (openParenCount > closeParenCount) {
-        const newInput = currentInput + type;
-        setCurrentInput(newInput);
-        setCalculatedResult(newInput);
-        if (!expression.includes('=')) {
-          setExpression(expression + type);
+        const newExpression = expression + type;
+        setExpression(newExpression);
+        setCurrentInput(currentInput + type);  // 右括弧も現在の入力に追加
+        try {
+          const result = await calculateWithPython(newExpression);
+          if (result && result.intermediate) {
+            setCalculatedResult(result.intermediate);
+          } else {
+            setCalculatedResult(currentInput);
+          }
+        } catch (error) {
+          console.error('計算エラー:', error);
+          setCalculatedResult(currentInput);
         }
-        setNewNumber(false);
       }
     }
+    setNewNumber(true);  // 次の数字入力のために準備
   };
 
-  // 括弧���タンの無効化状態を確する関数
+  // 括弧タンの無効化状態を確する関数
   const isCloseParenDisabled = () => {
     const openParenCount = (expression.match(/\(/g) || []).length;
     const closeParenCount = (expression.match(/\)/g) || []).length;
@@ -747,7 +803,7 @@ export function Calculator() {
       }
     }
 
-    // イベントリスナーを追加
+    // イベントリーを追加
     window.addEventListener('keydown', handleKeyDown)
 
     // クリーンアップ関数
@@ -785,17 +841,30 @@ export function Calculator() {
     const piValue = Math.PI;
     setCurrentInput(String(piValue));
     if (operation) {
-      const newExpression = `${expression} ${piValue}`;
+      const newExpression = `${expression}${piValue}`;
       setExpression(newExpression);
       try {
         const result = await calculateWithPython(newExpression);
-        setCalculatedResult(String(result));
+        if (result && result.intermediate) {
+          setCalculatedResult(result.intermediate);
+        } else {
+          setCalculatedResult(String(piValue));
+        }
       } catch (error) {
         console.error('計算エラー:', error);
+        setCalculatedResult(String(piValue));
       }
     } else {
       setExpression(String(piValue));
       setCalculatedResult(String(piValue));
+      try {
+        const result = await calculateWithPython(String(piValue));
+        if (result && result.intermediate) {
+          setCalculatedResult(result.intermediate);
+        }
+      } catch (error) {
+        console.error('計算エラー:', error);
+      }
     }
     setNewNumber(true);
   };
@@ -814,7 +883,7 @@ export function Calculator() {
           mainContent.clientHeight
         );
 
-        // パネルの状態に応じて幅を調整
+        // ネルの状態に応じて幅を調整
         const contentWidth = isRightPanelOpen 
           ? mainContent.clientWidth 
           : container.clientWidth;
@@ -856,7 +925,7 @@ export function Calculator() {
     };
   }, [handleResize]);
 
-  // パネルの開閉状態が変更されたときの処理
+  // ネルの開閉状態が変更されたときの処理
   useEffect(() => {
     // アニメーション完了後にリサイズを実行
     const timeoutId = setTimeout(handleResize, 300);
@@ -873,7 +942,7 @@ export function Calculator() {
     try {
       const willBeOpen = !isRightPanelOpen;
       
-      // 拡張表示中にパネルを閉じようとした場合は拡張表示も解除
+      // 拡張表示中にパネル閉じようとした場合は拡張表示も解除
       if (!willBeOpen && rightPanelView === 'extended-display') {
         setRightPanelView('chat');
       }
