@@ -185,7 +185,7 @@ export function Calculator() {
         setCalculatedResult(newInput);
       }
     } catch (error) {
-      console.error('計算エラー:', error);
+      console.error('計算���ラー:', error);
       setCalculatedResult(newInput);
     }
     
@@ -346,7 +346,7 @@ export function Calculator() {
     const newExpression = newNumber ? value : currentInput + value;
     setExpression(newExpression);
 
-    // sin, cos, tanが含まれている場合はリアルタイム計算を実行
+    // sin, cos, tanが含���れている場合はリアルタイム計算を実行
     const trigFunctions = ['sin', 'cos', 'tan'];
     if (trigFunctions.some(func => newExpression.includes(func))) {
       try {
@@ -672,7 +672,7 @@ export function Calculator() {
         response.content = "申し訳ありません。式が理解できませんでした。"
       }
     } catch {
-      response.content = "申し訳ありません。式は理解できません���した"
+      response.content = "申し訳ありません。式は理解できませんした"
     }
 
     setMessages([...messages, userMessage, response])
@@ -699,10 +699,27 @@ export function Calculator() {
   };
 
   const usePreviousResult = () => {
-    if (previousResult) {
-      setDisplay(previousResult)
-      setNewNumber(true)
+    // �算履歴が存在するかチェック
+    const lastCalculation = calculatorHistory[calculatorHistory.length - 1];
+    if (lastCalculation && lastCalculation.includes('=')) {
+      // 式と結果を分離
+      const [lastExpression, lastResult] = lastCalculation.split('=').map(s => s.trim());
+      
+      // ディスプレイをリセット
+      clear();
+      
+      // 前回の計算式と結果をセット
+      setExpression(lastExpression);
+      setCurrentInput(lastResult);
+      setCalculatedResult(lastResult);
+      setPreviousValue(parseFloat(lastResult));
+      setNewNumber(true);
     }
+  }
+
+  // 計算履歴の有無をチェックする関数
+  const hasCalculationHistory = () => {
+    return calculatorHistory.length > 0 && calculatorHistory[calculatorHistory.length - 1].includes('=');
   }
 
   const toggleColorScheme = () => {
@@ -1326,11 +1343,11 @@ export function Calculator() {
               <Button className={getButtonClass('accent')} onClick={() => multiplyBy(0.2)}>×0.2</Button>
               <Button className={getButtonClass('accent')} onClick={() => multiplyBy(0.4)}>×0.4</Button>
               <Button 
-                className={getButtonClass('accent')} 
+                className={`${getButtonClass('accent')} ${!hasCalculationHistory() ? 'opacity-50 cursor-not-allowed' : ''}`} 
                 onClick={usePreviousResult}
-                disabled={!previousResult}
+                disabled={!hasCalculationHistory()}
               >
-                直前
+                直前履歴
               </Button>
             </div>
 
@@ -1380,7 +1397,7 @@ export function Calculator() {
                     className={`${rightPanelView === 'history' ? 'bg-slate-100 dark:bg-slate-700' : ''} hover:bg-slate-100 dark:hover:bg-slate-700`}
                     onClick={() => setRightPanelView('history')}
                   >
-                    計算��歴
+                    計算歴
                   </Button>
                   <Button
                     variant="ghost"
