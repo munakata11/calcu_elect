@@ -167,13 +167,27 @@ def calculate(expression):
                     "intermediate": "Error"
                 }
 
-        # 式が演算子で終わっている場合は、式をそのまま返す
-        if expression[-1] in '+-×÷*/.(':
-            last_calc = get_last_complete_calculation(expression)
-            return {
-                "result": display_expression,
-                "intermediate": last_calc if last_calc else expression[:-1]
-            }
+        # 式が演算子で終わっている場合は、�の演算子を無視して計算
+        if expression and expression[-1] in '+-×÷*/.(':
+            expression = expression[:-1]
+            normalized = normalize_operators(expression)
+            try:
+                result = eval_expression(normalized)
+                if isinstance(result, str):
+                    return {
+                        "result": result,
+                        "intermediate": result
+                    }
+                formatted = format_number(result)
+                return {
+                    "result": formatted,
+                    "intermediate": formatted
+                }
+            except:
+                return {
+                    "result": expression,
+                    "intermediate": "Error"
+                }
 
         # 式を標準形式に変換して計算
         normalized = normalize_operators(expression)
@@ -242,7 +256,7 @@ def eval_expression(expression):
             # 式を評価（組み込み関数へのアクセスを制限）
             result = float(eval(expression, {"__builtins__": {}}, {}))
             
-            # 結果の検証
+            # 結果の���証
             if math.isnan(result) or math.isinf(result):
                 raise ValueError("無効な計算結果です")
                 
