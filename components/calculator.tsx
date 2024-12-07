@@ -145,7 +145,7 @@ export function Calculator() {
     if (newNumber) {
       newInput = number;
     } else {
-      // 三角関数が含まれている合は、式の最���追加
+      // 三角関数が含まれている合は、式の最���に追加
       const hasTrigFunction = ['sin', 'cos', 'tan'].some(func => currentInput.includes(func));
       if (hasTrigFunction) {
         newInput = currentInput + number;
@@ -363,7 +363,7 @@ export function Calculator() {
       setCurrentInput(String(result));
       setIsMillimeter(!isMillimeter);
       
-      // 新しい計算の開始として扱う
+      // 新しい計計算の開始として扱う
       setNewNumber(true);
       setPreviousValue(null);
       setOperation(null);
@@ -489,7 +489,7 @@ export function Calculator() {
 
   const sin = () => {
     if (currentInput === "0" && !expression) {
-      // 初期状態の0のときは、0を消してsinを入力
+      // 期状態の0のときは、0を消してsinを入力
       setExpression('sin');
       setCurrentInput('sin');
     } else {
@@ -1102,11 +1102,18 @@ export function Calculator() {
   };
 
   const appendTrigFunction = (func: string) => {
-    const currentExpr = expression || currentInput;
-    const newExpression = currentExpr + func;
-    
-    setExpression(newExpression);
-    setCurrentInput(newExpression);
+    let newExpression: string;
+    // 初期状態の0のときは、0を削除して三角関数を入力
+    if (currentInput === "0" && !expression) {
+      newExpression = func;
+      setExpression(newExpression);
+      setCurrentInput(newExpression);
+    } else {
+      const currentExpr = expression || currentInput;
+      newExpression = currentExpr + func;
+      setExpression(newExpression);
+      setCurrentInput(newExpression);
+    }
     
     calculateWithPython(newExpression).then(result => {
       if (result.intermediate) {
