@@ -185,7 +185,7 @@ export function Calculator() {
         setCalculatedResult(newInput);
       }
     } catch (error) {
-      console.error('計算���ラー:', error);
+      console.error('計算エラー:', error);
       setCalculatedResult(newInput);
     }
     
@@ -346,7 +346,7 @@ export function Calculator() {
     const newExpression = newNumber ? value : currentInput + value;
     setExpression(newExpression);
 
-    // sin, cos, tanが含���れている場合はリアルタイム計算を実行
+    // sin, cos, tanが含まれている場合はリアルタイム計算を実行
     const trigFunctions = ['sin', 'cos', 'tan'];
     if (trigFunctions.some(func => newExpression.includes(func))) {
       try {
@@ -505,7 +505,7 @@ export function Calculator() {
       return;
     }
 
-    // 上���以外は従来通り最後の一文字ずつ削除
+    // 上以外は従来通り最後の一文字ずつ削除
     if (expression.length > 1) {
       const newExpression = expression.slice(0, -1);
       setExpression(newExpression);
@@ -622,15 +622,37 @@ export function Calculator() {
     setNewNumber(false);
   };
 
-  const circleArea = () => {
+  // 数字の直後かどうかをチェックする関数を追加
+  const isAfterNumber = () => {
+    if (!expression) return false;
+    const lastChar = expression.slice(-1);
+    return /[0-9]/.test(lastChar);
+  }
+
+  const circleArea = async () => {
     try {
-      const radius = new Decimal(currentInput)
-      const result = radius.times(radius).times(Decimal.acos(-1)) // Decimal.acos(-1)
-      setCurrentInput(result.toString())
-      setCalculatedResult(result.toString())
-      setNewNumber(true)
+      // 数字の直後でない場合は処理しない
+      if (!isAfterNumber()) {
+        return;
+      }
+
+      // 式に円面積の計算を追加
+      const newExpression = expression + "^2×π÷4";
+      setExpression(newExpression);
+      
+      // Pythonバックエンドで計算
+      const result = await calculateWithPython(newExpression);
+      if (result && result.intermediate) {
+        setCalculatedResult(result.intermediate);
+        setCurrentInput(result.intermediate);
+      } else if (result && result.result) {
+        setCalculatedResult(result.result);
+        setCurrentInput(result.result);
+      }
+      
+      setNewNumber(true);
     } catch (error) {
-      console.error("計算エラー:", error)
+      console.error("計算エラー:", error);
     }
   }
 
@@ -1196,7 +1218,7 @@ export function Calculator() {
 
   const appendTrigFunction = (func: string) => {
     let newExpression: string;
-    // 初期状態の0のときは、0を削除して三角関数を入力
+    // 初期状態の0のとき、0を削除して角関数を入力
     if (currentInput === "0" && !expression) {
       newExpression = func;
       setExpression(newExpression);
@@ -1383,7 +1405,13 @@ export function Calculator() {
                 onClick={() => appendParenthesis(')')}
               >)</Button>
 
-              <Button className={getButtonClass('accent')} onClick={circleArea}>円面積</Button>
+              <Button 
+                className={getButtonClass('accent')} 
+                onClick={circleArea}
+                disabled={!isAfterNumber()}
+              >
+                円面積
+              </Button>
               <Button className={getButtonClass('accent')} onClick={() => multiplyBy(5)}>×5</Button>
               <Button className={getButtonClass('accent')} onClick={() => multiplyBy(2.5)}>×2.5</Button>
               <Button className={getButtonClass('accent')} onClick={() => multiplyBy(0.2)}>×0.2</Button>
