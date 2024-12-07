@@ -2,10 +2,45 @@ import math
 import json
 import sys
 import codecs
+import re
 
 def calculate_trig(expression):
     """三角関数部分を計算"""
     try:
+        if not expression:
+            return {
+                "result": "",
+                "intermediate": "",
+                "error": None
+            }
+
+        expression = expression.strip()
+
+        # πを含む場合、表示用の式を保持
+        display_expression = expression
+        
+        # 三角関数のチェック
+        trig_functions = ['sin', 'cos', 'tan']
+        for func in trig_functions:
+            if func in expression:
+                # 三角関数の後に数字または(が続いているかチェック
+                pattern = f"{func}(?![0-9\(])"
+                if re.search(pattern, expression):
+                    return {
+                        "result": expression,
+                        "intermediate": f"{func}の後に数値または括弧が必要です",
+                        "error": None
+                    }
+
+        # バリデーションチェック
+        validation_error = validate_expression(expression)
+        if validation_error:
+            return {
+                "result": expression,
+                "intermediate": validation_error,
+                "error": True
+            }
+
         func_name = expression[:3]
         number_part = ""
         i = 3
@@ -23,8 +58,12 @@ def calculate_trig(expression):
             else:  # tan
                 result = math.tan(radian)
             return format_number(result), i
-    except ValueError:
-        pass
+    except Exception as e:
+        return {
+            "result": expression,
+            "intermediate": str(e),
+            "error": None
+        }
     return None, 3
 
 def normalize_operators(expression):
@@ -34,6 +73,10 @@ def normalize_operators(expression):
     i = 0
     while i < len(expression):
         if i + 3 <= len(expression) and expression[i:i+3] in ['sin', 'cos', 'tan']:
+            # sin, cos, tanの直前が数字または')'なら掛け算記号を挿入
+            if i > 0 and (expression[i-1].isdigit() or expression[i-1] == ')'):
+                result += '*'
+
             trig_result, next_pos = calculate_trig(expression[i:])
             if trig_result is not None:
                 result += trig_result
@@ -65,19 +108,41 @@ def normalize_operators(expression):
     return result
 
 def calculate(expression):
+    """数式を計算する関数"""
     try:
         if not expression:
-            return {"error": "Error"}
+            return {
+                "result": "",
+                "intermediate": "Error"
+            }
 
-        # 文字列型に変換（JSON経由で来る場合の対応）
+        # 文字列型に変換
         if not isinstance(expression, str):
             expression = str(expression)
 
         # 空白を削除
         expression = expression.strip()
 
-        # πを含む場合、表示用の式を保持
-        display_expression = expression
+        # 三角関数のチェック
+        for func in ['sin', 'cos', 'tan']:
+            if func in expression and not re.search(f"{func}[0-9\(]", expression):
+                return {
+                    "result": expression,
+                    "intermediate": "Error"
+                }
+
+        # バリデーションチェック
+        validation_error = validate_expression(expression)
+        if validation_error:
+            if any(func in expression for func in ['sin', 'cos', 'tan']):
+                return {
+                    "result": validation_error,
+                    "intermediate": "Error"
+                }
+            return {
+                "result": expression,
+                "intermediate": validation_error
+            }
 
         # 括弧の対応をチェック
         open_count = expression.count('(')
@@ -147,7 +212,7 @@ def get_last_complete_calculation(expression):
     """最後の完全な計算部分を取得して計算"""
     try:
         # 式が演算子で終わている場合は、その前までを計算
-        if expression[-1] in '+-×÷*/.(':
+        if expression and expression[-1] in '+-×÷*/.(':
             expression = expression[:-1]
 
         # 式を標準形式に変換して計算
@@ -241,6 +306,30 @@ def check_parentheses(expression):
             stack.pop()
     return len(stack) == 0
 
+def validate_expression(expression):
+    # 既存のバリデーションコード
+    if not expression:
+        return "式が入力されていません"
+    
+    # 括弧のチェック
+    if not check_parentheses(expression):
+        return "括弧の対応が正しいありません"
+    
+    # 演算子の連続チェック
+    if re.search(r'[\+\-\*\/]{2,}', expression):
+        return "演算子が連続しています"
+        
+    # sin, cos, tanの後に数字がないケースをチェック
+    trig_functions = ['sin', 'cos', 'tan']
+    for func in trig_functions:
+        if func in expression:
+            # 三角関数の後に数字または(が続いているかチェック
+            pattern = f"{func}(?![0-9\(])"
+            if re.search(pattern, expression):
+                return expression
+    
+    return None
+
 def main():
     # 標準出力と標準エラー出力をUTF-8に設定
     if sys.platform == 'win32':
@@ -275,4 +364,4 @@ def main():
             sys.stdout.flush()
 
 if __name__ == "__main__":
-    main() 
+    main()
