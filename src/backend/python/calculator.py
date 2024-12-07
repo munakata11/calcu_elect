@@ -1,6 +1,7 @@
 import math
 import json
 import sys
+import codecs
 
 def calculate_trig(expression):
     """三角関数部分を計算"""
@@ -28,7 +29,7 @@ def calculate_trig(expression):
 
 def normalize_operators(expression):
     """演算子を標準形式に変換"""
-    # 三角関数を含む式を処理
+    # 数字の後のπを掛け算として処理
     result = ""
     i = 0
     while i < len(expression):
@@ -39,8 +40,12 @@ def normalize_operators(expression):
                 i += next_pos
                 continue
         
+        if i > 0 and expression[i] == 'π' and (expression[i-1].isdigit() or expression[i-1] == ')'):
+            result += '*' + str(math.pi)
+        elif expression[i] == 'π':
+            result += str(math.pi)
         # 数字の後に括弧が来た場合、掛け算を挿入
-        if i > 0 and expression[i] == '(' and (expression[i-1].isdigit() or expression[i-1] == ')'):
+        elif i > 0 and expression[i] == '(' and (expression[i-1].isdigit() or expression[i-1] == ')'):
             result += '*('
         elif expression[i] == '×':
             result += '*'
@@ -62,7 +67,7 @@ def normalize_operators(expression):
 def calculate(expression):
     try:
         if not expression:
-            return {"error": "式が空です"}
+            return {"error": "Error"}
 
         # 文字列型に変換（JSON経由で来る場合の対応）
         if not isinstance(expression, str):
@@ -71,11 +76,37 @@ def calculate(expression):
         # 空白を削除
         expression = expression.strip()
 
+        # πを含む場合、表示用の式を保持
+        display_expression = expression
+
+        # 括弧の対応をチェック
+        open_count = expression.count('(')
+        close_count = expression.count(')')
+        if open_count > close_count:
+            # 括弧が不完全な場合、式をresultに、"Error"をintermediateに返す
+            try:
+                normalized = normalize_operators(expression)
+                calc_result = eval_expression(normalized)
+                if isinstance(calc_result, str):
+                    return {
+                        "result": expression,
+                        "intermediate": "Error"
+                    }
+                return {
+                    "result": expression,
+                    "intermediate": "Error"
+                }
+            except:
+                return {
+                    "result": expression,
+                    "intermediate": "Error"
+                }
+
         # 式が演算子で終わっている場合は、式をそのまま返す
         if expression[-1] in '+-×÷*/.(':
             last_calc = get_last_complete_calculation(expression)
             return {
-                "result": convert_operators(expression),
+                "result": display_expression,
                 "intermediate": last_calc if last_calc else expression[:-1]
             }
 
@@ -84,16 +115,33 @@ def calculate(expression):
         try:
             result = eval_expression(normalized)
             if isinstance(result, str):
-                return {"result": convert_operators(expression), "intermediate": expression}
+                return {"result": display_expression, "intermediate": expression}
+            
+            # πの倍数かどうかをチェック
+            pi_multiple = result / math.pi
+            if abs(pi_multiple - round(pi_multiple)) < 1e-10:
+                if abs(pi_multiple - 1) < 1e-10:
+                    return {
+                        "result": "π",
+                        "intermediate": f"{math.pi:.13f}"
+                    }
+                else:
+                    return {
+                        "result": f"{round(pi_multiple)}π",
+                        "intermediate": f"{result:.13f}"
+                    }
+            
+            # その他の数値の場合
+            formatted = f"{result:.13f}".rstrip('0').rstrip('.')
             return {
-                "result": convert_operators(expression),
-                "intermediate": format_number(result)
+                "result": formatted,
+                "intermediate": formatted
             }
         except:
-            return {"result": convert_operators(expression), "intermediate": expression}
+            return {"result": display_expression, "intermediate": expression}
 
     except Exception as e:
-        return {"error": f"計算エラー: {str(e)}"}
+        return {"error": "Error"}
 
 def get_last_complete_calculation(expression):
     """最後の完全な計算部分を取得して計算"""
@@ -118,13 +166,15 @@ def get_last_complete_calculation(expression):
 def eval_expression(expression):
     try:
         # 使用可能な文字をチェック
-        allowed = set('0123456789.+-*/() ')
+        allowed = set('0123456789.+-*/() π')
         if not all(c in allowed for c in expression):
             raise ValueError("不正な文字が含まれています")
 
+        # πをmath.piに置換
+        expression = expression.replace('π', str(math.pi))
+
         try:
             # 式を評価（組み込み関数へのアクセスを制限）
-            # 括弧の前に数字がある場合の暗黙の掛け算を処理
             result = float(eval(expression, {"__builtins__": {}}, {}))
             
             # 結果の検証
@@ -149,9 +199,18 @@ def format_number(number):
         if float(number).is_integer():
             return str(int(number))
         else:
-            # 三角関数の結果など、割り切れない値は13桁まで表示
+            # πの倍数かどうかをチェック
+            pi_multiple = number / math.pi
+            if abs(pi_multiple - round(pi_multiple)) < 1e-10:
+                if abs(pi_multiple - 1) < 1e-10:
+                    return "π"
+                else:
+                    return f"{round(pi_multiple)}π"
+            
+            # その他の数値は通常の表示形式
             if isinstance(number, float):
-                return f"{number:.13f}".rstrip('0').rstrip('.')
+                formatted = f"{number:.13f}".rstrip('0').rstrip('.')
+                return formatted
             return f"{float(number):g}"
     except:
         return None
@@ -183,27 +242,36 @@ def check_parentheses(expression):
     return len(stack) == 0
 
 def main():
+    # 標準出力と標準エラー出力をUTF-8に設定
+    if sys.platform == 'win32':
+        sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+        sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
+    else:
+        sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer)
+        sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer)
+
     while True:
         try:
-            # 標準入力から式を読み込む
-            line = sys.stdin.readline().strip()
+            # 標準入力から式を読み込む（UTF-8として）
+            line = sys.stdin.buffer.readline().decode('utf-8').strip()
             if not line:
                 continue
 
             # デバッグ用：受け取った入力の内容を出力
+            debug_msg = f"受け取った入力: {line}, 型: {type(line)}"
             print(json.dumps({
-                "debug": f"受け取った入力: {line}, 型: {type(line)}"
-            }), file=sys.stderr)
+                "debug": debug_msg
+            }, ensure_ascii=False), file=sys.stderr)
 
             # 計算を実行
             result = calculate(line)
             
             # 結果を出力
-            print(json.dumps(result))
+            print(json.dumps(result, ensure_ascii=False))
             sys.stdout.flush()
 
         except Exception as e:
-            print(json.dumps({"error": str(e)}))
+            print(json.dumps({"error": str(e)}, ensure_ascii=False))
             sys.stdout.flush()
 
 if __name__ == "__main__":

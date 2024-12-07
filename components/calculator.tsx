@@ -46,6 +46,17 @@ const removeSpaces = (expr: string) => {
   return expr.replace(/\s+/g, '');
 };
 
+// 括弧の対応をチェックする関数を追加
+const checkParentheses = (expr: string): boolean => {
+  let count = 0;
+  for (const char of expr) {
+    if (char === '(') count++;
+    if (char === ')') count--;
+    if (count < 0) return false; // 閉じ括弧が多すぎる
+  }
+  return count === 0; // 開き括弧と閉じ括弧の数が一致
+};
+
 export function Calculator() {
   const [display, setDisplay] = useState("0")
   const [memory, setMemory] = useState(0)
@@ -92,6 +103,7 @@ export function Calculator() {
       if (!result) {
         throw new Error('計算エラーが発生しました');
       }
+
       return {
         result: result.result || expression,
         intermediate: result.intermediate || null
@@ -182,7 +194,7 @@ export function Calculator() {
         setExpression(newExpression);
         setFullExpression(fullExpression === "" ? current : `${fullExpression}${op}`);
         
-        // 括弧を含む式の場合、括弧内の計算結果を表示
+        // 括弧を含む式の場合、括弧内の計算結果を示
         if (expression.includes('(')) {
           try {
             const result = await calculateWithPython(expression);
@@ -314,11 +326,34 @@ export function Calculator() {
   // 単位変換
   const mmToM = async () => {
     try {
+      // 計算結果が表示されている場合は履歴をクリア
+      if (expression.includes('=') || (operation && !expression.includes('='))) {
+        // リアルタイム計算中または計算結果表示中の場合
+        setExpression("");
+        setFullExpression("");
+        setCalculatorHistory([]);
+      }
+
       const value = parseFloat(calculatedResult);
-      const result = await convertUnit(value, isMillimeter ? 'mm_to_m' : 'm_to_mm');
+      let result: number;
+      
+      if (isMillimeter) {
+        // mmからmへの変換（1000分の1）
+        result = value / 1000;
+      } else {
+        // mからmmへの変換（1000倍）
+        result = value * 1000;
+      }
+      
+      // 結果を更新
       setCalculatedResult(String(result));
       setCurrentInput(String(result));
       setIsMillimeter(!isMillimeter);
+      
+      // 新しい計算の開始として扱う
+      setNewNumber(true);
+      setPreviousValue(null);
+      setOperation(null);
     } catch (error) {
       console.error('単位変換エラー:', error);
     }
@@ -326,13 +361,36 @@ export function Calculator() {
 
   const mmCubeToMCube = async () => {
     try {
+      // 計算結果が表示されている場合は履歴をクリア
+      if (expression.includes('=') || (operation && !expression.includes('='))) {
+        // リアルタイム計算中または計算結果表示中の場合
+        setExpression("");
+        setFullExpression("");
+        setCalculatorHistory([]);
+      }
+
       const value = parseFloat(calculatedResult);
-      const result = await convertUnit(value, isMillimeterCube ? 'mm3_to_m3' : 'm3_to_mm3');
+      let result: number;
+      
+      if (isMillimeterCube) {
+        // mm³からm³への変換（10億分の1）
+        result = value / 1000000000;
+      } else {
+        // m³からmm³への変換（10億倍）
+        result = value * 1000000000;
+      }
+      
+      // 結果を更新
       setCalculatedResult(String(result));
       setCurrentInput(String(result));
       setIsMillimeterCube(!isMillimeterCube);
+      
+      // 新しい計算の開始として扱う
+      setNewNumber(true);
+      setPreviousValue(null);
+      setOperation(null);
     } catch (error) {
-      console.error('単位変換ラー:', error);
+      console.error('単位変換エラー:', error);
     }
   };
 
@@ -343,7 +401,7 @@ export function Calculator() {
     setOperation(null)
     setNewNumber(true)
     setExpression("")
-    // fullExpressionはクリアない - ACでのクリア
+    // fullExpressionクリアない - ACでのクリア
   }
 
   const clearAll = () => {
@@ -459,7 +517,7 @@ export function Calculator() {
       const normalizedExpression = calcExpression.replace('×', '*');
       const result = await calculateWithPython(normalizedExpression);
       
-      // 計算結果を取得
+      // 算結果を取得
       const resultValue = result.result || String(current * factor);
       const displayValue = result.intermediate || resultValue;
       
@@ -619,10 +677,10 @@ export function Calculator() {
       }
     }
 
-    // 既存の処理三角関数など）
+    // 既存の処理三角関数な）
     const lastChar = value.slice(-1)
 
-    // 四則演算記号入力された場合の処理
+    // 四則演算記号入力された場合���処理
     if (['+', '-', '×', '÷', '*', '/'].includes(lastChar)) {
       // 直前までの文字に三角関数が含まれているかチェッ
       const trigMatch = value.slice(0, -1).match(/(sin|cos|tan)(\d+)$/)
@@ -803,27 +861,33 @@ export function Calculator() {
       }
     }
 
-    // イベントリーを追加
+    // イベントリスナーの設定
     window.addEventListener('keydown', handleKeyDown)
 
     // クリーンアップ関数
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [expression, currentInput, previousValue, operation]) // expressionを依配列に追加
+  }, [expression, currentInput, previousValue, operation])
 
   // 数値を通常記に変換する関を追加
   const formatNumber = (num: number | string): string => {
     try {
       const decimal = new Decimal(num)
-      return decimal.toFixed() // 科学表記を使用せず表示
+      return decimal.toFixed() // 科学表記を用せず表示
     } catch {
       return String(num)
     }
   }
 
-  // 数点追加
+  // 小数点追加
   const appendDecimal = async () => {
+    // 式が空または演算子で終わる場合は小数点を追加しない
+    if (/[+\-×÷]$/.test(expression)) {
+      return;
+    }
+
+    // 現在の入力に既に小数点がある場合は追加しない
     if (!currentInput.includes(".")) {
       const newInput = currentInput + ".";
       setCurrentInput(newInput);
@@ -838,32 +902,36 @@ export function Calculator() {
 
   // π追加
   const appendPi = async () => {
-    const piValue = Math.PI;
-    setCurrentInput(String(piValue));
-    if (operation) {
-      const newExpression = `${expression}${piValue}`;
+    // 式が空、または演算子で終わる場合はπをそのまま追加
+    if (!expression || /[+\-×÷]$/.test(expression)) {
+      setExpression("π");
+      setCurrentInput("π");
+      try {
+        const result = await calculateWithPython("π");
+        if (result && result.intermediate) {
+          setCalculatedResult(result.intermediate);
+        } else {
+          setCalculatedResult("π");
+        }
+      } catch (error) {
+        console.error('計算エラー:', error);
+        setCalculatedResult("π");
+      }
+    } else {
+      // 既存の式の後にπを追加
+      const newExpression = `${expression}π`;
       setExpression(newExpression);
+      setCurrentInput(currentInput + "π");
       try {
         const result = await calculateWithPython(newExpression);
         if (result && result.intermediate) {
           setCalculatedResult(result.intermediate);
         } else {
-          setCalculatedResult(String(piValue));
+          setCalculatedResult(newExpression);
         }
       } catch (error) {
         console.error('計算エラー:', error);
-        setCalculatedResult(String(piValue));
-      }
-    } else {
-      setExpression(String(piValue));
-      setCalculatedResult(String(piValue));
-      try {
-        const result = await calculateWithPython(String(piValue));
-        if (result && result.intermediate) {
-          setCalculatedResult(result.intermediate);
-        }
-      } catch (error) {
-        console.error('計算エラー:', error);
+        setCalculatedResult(newExpression);
       }
     }
     setNewNumber(true);
@@ -875,7 +943,7 @@ export function Calculator() {
     const mainContent = document.querySelector('main');
     if (container && mainContent) {
       try {
-        // のコンテンツの高さを取得（スクロル可能な高さを含む）
+        // のコンテツの高さを取得（スクロル可能な高さを含む）
         const contentHeight = Math.max(
           container.scrollHeight,
           mainContent.scrollHeight,
@@ -902,7 +970,7 @@ export function Calculator() {
           isRightPanelOpen
         });
       } catch (error) {
-        console.error('リサイズエラー:', error);
+        console.error('リサイズラー:', error);
       }
     }
   }, [isRightPanelOpen]);
@@ -910,7 +978,7 @@ export function Calculator() {
   // 計算機の容が更されたときにリサイズを実行
   useEffect(() => {
     const resizeObserver = new ResizeObserver((entries) => {
-      // し延を入れてアニメーション完了後にリサイズ
+      // し延���入れてアニメーション完了後にリサイズ
       setTimeout(handleResize, 100);
     });
 
@@ -955,7 +1023,7 @@ export function Calculator() {
     }
   }, [isRightPanelOpen, rightPanelView]);
 
-  // ディスプレイのオーバーフローを監視
+  // ディプレイのオーバーフローを監視
   useEffect(() => {
     const displayElement = document.querySelector('.calculator-display');
     if (displayElement) {
@@ -1059,16 +1127,20 @@ export function Calculator() {
                   className="px-2 h-10" 
                   onClick={() => toggleUnit('volume')}
                 >
-                  ⇄
+                  ��
                 </Button>
               </div>
             </div>
             <div className="flex gap-2 mb-3">
               <div className={`flex-1 rounded-lg ${isDarkMode ? 'bg-slate-700' : colorSchemes[colorScheme].display} p-4 h-[100px] shadow-inner overflow-hidden`}>
-                <div className={`text-right text-sm text-muted-foreground min-h-[1.25rem] whitespace-nowrap overflow-x-auto calculator-display ${isDisplayOverflowing ? 'opacity-0' : ''}`}>
+                <div className={`text-right text-sm text-muted-foreground min-h-[1.25rem] whitespace-nowrap overflow-x-auto calculator-display ${isDisplayOverflowing ? 'opacity-0' : ''}`}
+                  style={{ userSelect: 'text' }}
+                >
                   {removeSpaces(expression)}
                 </div>
-                <div className={`text-right text-4xl font-bold tabular-nums overflow-y-hidden overflow-x-auto whitespace-nowrap ${rightPanelView === 'extended-display' && isDisplayOverflowing ? 'opacity-0' : ''}`}>
+                <div className={`text-right text-4xl font-bold tabular-nums overflow-y-hidden overflow-x-auto whitespace-nowrap ${rightPanelView === 'extended-display' && isDisplayOverflowing ? 'opacity-0' : ''}`}
+                  style={{ userSelect: 'text' }}
+                >
                   {formatNumber(calculatedResult)}
                 </div>
               </div>
@@ -1155,7 +1227,7 @@ export function Calculator() {
 
             <div className="mt-4 flex gap-2">
               <Input
-                placeholder="算を入力してください"
+                placeholder="算を入力てください"
                 value={quickInput}
                 onChange={handleQuickInputChange}
                 onKeyDown={(e) => {
@@ -1214,10 +1286,14 @@ export function Calculator() {
 
               {rightPanelView === 'extended-display' && isDisplayOverflowing ? (
                 <div className={`rounded-lg ${isDarkMode ? 'bg-slate-700' : colorSchemes[colorScheme].display} p-4 shadow-inner overflow-hidden mb-4`}>
-                  <div className="text-right text-sm text-muted-foreground min-h-[1.25rem] break-all whitespace-pre-wrap">
+                  <div className="text-right text-sm text-muted-foreground min-h-[1.25rem] break-all whitespace-pre-wrap"
+                    style={{ userSelect: 'text' }}
+                  >
                     {removeSpaces(expression)}
                   </div>
-                  <div className="text-right text-4xl font-bold tabular-nums overflow-y-hidden overflow-x-auto whitespace-nowrap" style={{ direction: 'ltr' }}>
+                  <div className="text-right text-4xl font-bold tabular-nums overflow-y-hidden overflow-x-auto whitespace-nowrap"
+                    style={{ direction: 'ltr', userSelect: 'text' }}
+                  >
                     {formatNumber(calculatedResult)}
                   </div>
                 </div>
@@ -1291,7 +1367,11 @@ export function Calculator() {
               ) : (
                 <ScrollArea className="h-[550px]">
                   {calculatorHistory.map((entry, index) => (
-                    <div key={index} className="mb-2 text-sm text-left" style={{ direction: 'ltr' }}>
+                    <div 
+                      key={index} 
+                      className="mb-2 text-sm text-left" 
+                      style={{ direction: 'ltr', userSelect: 'text' }}
+                    >
                       {entry}
                     </div>
                   ))}
