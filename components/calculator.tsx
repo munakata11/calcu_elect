@@ -141,11 +141,21 @@ export function Calculator() {
       return;
     }
 
+    // 計算結果が表示されている場合（式に'='が含まれている場合）は、ディスプレイをリセット
+    if (expression.includes('=')) {
+      clear();  // ディスプレイをリセット
+      setCurrentInput(number);
+      setExpression(number);
+      setCalculatedResult(number);
+      setNewNumber(false);
+      return;
+    }
+
     let newInput: string;
     if (newNumber) {
       newInput = number;
     } else {
-      // 三角関数が含まれている合は、式の最���に追加
+      // 三角関数が含まれている場合は、式の最後に追加
       const hasTrigFunction = ['sin', 'cos', 'tan'].some(func => currentInput.includes(func));
       if (hasTrigFunction) {
         newInput = currentInput + number;
@@ -186,10 +196,27 @@ export function Calculator() {
   const setOperator = async (op: string) => {
     try {
       if (expression.includes('=')) {
+        // 計算結果から続けて計算する場合
         const parts = expression.split('=');
-        const displayValue = parts[1];
-        setExpression(`${displayValue}${op}`);
-        setPreviousValue(parseFloat(currentInput));
+        const prevExpression = parts[0].trim(); // 前回の計算式
+        const prevResult = calculatedResult; // 前回の計算結果
+        
+        // 前回の計算式に演算子を追加
+        const newExpression = prevExpression + op;
+        setExpression(newExpression);
+        setFullExpression(newExpression);
+        setPreviousValue(parseFloat(prevResult));
+        
+        // 中間結果を計算して表示
+        try {
+          const result = await calculateWithPython(newExpression);
+          if (result && result.intermediate) {
+            setCalculatedResult(result.intermediate);
+          }
+        } catch (error) {
+          console.error('計算エラー:', error);
+          setCalculatedResult(prevResult);
+        }
       } else if (previousValue === null) {
         const current = currentInput;
         setPreviousValue(parseFloat(current));
@@ -363,7 +390,7 @@ export function Calculator() {
       setCurrentInput(String(result));
       setIsMillimeter(!isMillimeter);
       
-      // 新しい計計算の開始として扱う
+      // 新しい計計計算の開始として扱う
       setNewNumber(true);
       setPreviousValue(null);
       setOperation(null);
@@ -376,7 +403,7 @@ export function Calculator() {
     try {
       // 計算結果が表示されてい場合は履歴をクリア
       if (expression.includes('=') || (operation && !expression.includes('='))) {
-        // リアルタイム計算中または計算結果表示中の場合
+        // リアルタイム計算中または計算結果表示中場合
         setExpression("");
         setFullExpression("");
         setCalculatorHistory([]);
@@ -389,7 +416,7 @@ export function Calculator() {
         // mm³からm³への変換（10億分の1）
         result = value / 1000000000;
       } else {
-        // m³からmm³の変換（10億倍）
+        // m³からmm³の変換換（10億倍）
         result = value * 1000000000;
       }
       
@@ -408,20 +435,40 @@ export function Calculator() {
   };
 
   const clear = () => {
-    setCurrentInput("0")
-    setCalculatedResult("0")
-    setPreviousValue(null)
-    setOperation(null)
-    setNewNumber(true)
-    setExpression("")
-    // fullExpressionクリアない - ACのクリア
+    // 最後の計算結果（=を含む式）があるかチェック
+    const lastCalculation = calculatorHistory[calculatorHistory.length - 1];
+    if (lastCalculation && lastCalculation.includes('=')) {
+      const [lastExpression, lastResult] = lastCalculation.split('=').map(s => s.trim());
+      
+      // 現在の式が前回の計算結果から続いているかチェック
+      if (expression.startsWith(lastExpression)) {
+        // 前回の計算式を残して、それ以降をクリア
+        setExpression(lastExpression);
+        setCurrentInput(lastResult);
+        setCalculatedResult(lastResult);
+        setPreviousValue(parseFloat(lastResult));
+        setOperation(null);
+        setNewNumber(true);
+        return;
+      }
+    }
+
+    // 通常のクリア処理
+    setCurrentInput("0");
+    setCalculatedResult("0");
+    setPreviousValue(null);
+    setOperation(null);
+    setNewNumber(true);
+    setExpression("");
   }
 
-  const clearAll = () => {
+  const clearAll = (shouldClearHistory: boolean = true) => {
     clear()
-    setCalculatorHistory([])
     setMemory(0)
     setFullExpression("")
+    if (shouldClearHistory) {
+      setCalculatorHistory([])
+    }
   }
 
   // del関数修正: sin,cos,tanをまとめて削除するように変更
@@ -625,7 +672,7 @@ export function Calculator() {
         response.content = "申し訳ありません。式が理解できませんでした。"
       }
     } catch {
-      response.content = "申し訳ありません。式は理解できませんでした"
+      response.content = "申し訳ありません。式は理解できません���した"
     }
 
     setMessages([...messages, userMessage, response])
@@ -884,7 +931,7 @@ export function Calculator() {
         del()
       }
       else if (e.key === 'Escape') {
-        clearAll()
+        clearAll(false)  // 履歴をクリアしない
       }
     }
 
@@ -1254,7 +1301,7 @@ export function Calculator() {
               <Button variant="ghost" className="bg-slate-100 hover:bg-slate-200 text-slate-800" onClick={() => appendNumber("00")}>00</Button>
               <Button className={getButtonClass('accent')} onClick={del}>DEL</Button>
               <Button className={getButtonClass('accent')} onClick={clear}>C</Button>
-              <Button className={getButtonClass('accent')} onClick={clearAll}>AC</Button>
+              <Button className={getButtonClass('accent')} onClick={() => clearAll(true)}>AC</Button>
               <Button className={getButtonClass('accent')} onClick={calculateResult}>=</Button>
             </div>
 
@@ -1333,7 +1380,7 @@ export function Calculator() {
                     className={`${rightPanelView === 'history' ? 'bg-slate-100 dark:bg-slate-700' : ''} hover:bg-slate-100 dark:hover:bg-slate-700`}
                     onClick={() => setRightPanelView('history')}
                   >
-                    計算履歴
+                    計算��歴
                   </Button>
                   <Button
                     variant="ghost"

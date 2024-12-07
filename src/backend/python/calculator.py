@@ -327,7 +327,7 @@ def validate_expression(expression):
     
     # 括弧のチェック
     if not check_parentheses(expression):
-        return "括弧の対応が正しいありません"
+        return "Error"
     
     # 演算子の連続チェック
     if re.search(r'[\+\-\*\/]{2,}', expression):
