@@ -346,7 +346,7 @@ export function Calculator() {
     const newExpression = newNumber ? value : currentInput + value;
     setExpression(newExpression);
 
-    // sin, cos, tanが含���れている場合はリアルタイム計算を実行
+    // sin, cos, tanが含���ている場合はリアルタイム計算を実行
     const trigFunctions = ['sin', 'cos', 'tan'];
     if (trigFunctions.some(func => newExpression.includes(func))) {
       try {
@@ -699,7 +699,7 @@ export function Calculator() {
   };
 
   const usePreviousResult = () => {
-    // �算履歴が存在するかチェック
+    // 計算履歴が存在するかチェック
     const lastCalculation = calculatorHistory[calculatorHistory.length - 1];
     if (lastCalculation && lastCalculation.includes('=')) {
       // 式と結果を分離
@@ -876,87 +876,98 @@ export function Calculator() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return
+        return;
       }
 
-      e.preventDefault()
+      e.preventDefault();
+
+      // Tabキーでタブを切り替え
+      if (e.key === 'Tab') {
+        e.preventDefault(); // デフォルトのタブ移動を防止
+        if (rightPanelView === 'chat') {
+          setRightPanelView('history');
+        } else if (rightPanelView === 'history') {
+          setRightPanelView('chat');
+        }
+        return;
+      }
 
       if (/^[0-9]$/.test(e.key)) {
-        appendNumber(e.key)
+        appendNumber(e.key);
       }
       else if (e.key === '.') {
-        appendDecimal()
+        appendDecimal();
       }
       else if (e.key === '+' || e.key === '-') {
-        setOperator(e.key)
+        setOperator(e.key);
       }
       else if (e.key === '*' || e.key === 'x' || e.key === '×') {
-        setOperator('×')
+        setOperator('×');
       }
       else if (e.key === '/' || e.key === '÷') {
-        setOperator('÷')
+        setOperator('÷');
       }
       else if (e.key.toLowerCase() === 's') {
-        sin()
+        sin();
       }
       else if (e.key.toLowerCase() === 'c') {
-        cos()
+        cos();
       }
       else if (e.key.toLowerCase() === 't') {
-        tan()
+        tan();
       }
       else if (e.key.toLowerCase() === 'q') {
-        appendNumber("45")
+        appendNumber("45");
       }
       else if (e.key.toLowerCase() === 'w') {
-        appendNumber("22.5")
+        appendNumber("22.5");
       }
       else if (e.key.toLowerCase() === 'e') {
-        appendNumber("11.25")
+        appendNumber("11.25");
       }
       else if (e.key.toLowerCase() === 'r') {
-        appendNumber("5.625")
+        appendNumber("5.625");
       }
       else if (e.key.toLowerCase() === 'o') {
-        multiplyBy(5)
+        multiplyBy(5);
       }
       else if (e.key.toLowerCase() === 'p') {
-        multiplyBy(2.5)
+        multiplyBy(2.5);
       }
       else if (e.key === '@') {
-        multiplyBy(0.2)
+        multiplyBy(0.2);
       }
       else if (e.key === '[') {
-        multiplyBy(0.4)
+        multiplyBy(0.4);
       }
       else if (e.key === '\\') {
-        appendPi()
+        appendPi();
       }
       else if (e.key === '^') {
-        square()
+        square();
       }
       else if (e.key === '(') {
-        appendParenthesis('(')
+        appendParenthesis('(');
       }
       else if (e.key === ')') {
-        appendParenthesis(')')
+        appendParenthesis(')');
       }
       else if (e.key === 'Enter' || e.key === '=') {
-        calculateResult()
+        calculateResult();
       }
       else if (e.key === 'Backspace') {
-        del()
+        del();
       }
       else if (e.key === 'Escape') {
-        clearAll(false)  // 履歴をクリアしない
+        clearAll(false);  // 履歴をクリアしない
       }
-    }
+    };
 
-    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keydown', handleKeyDown);
     return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [expression, currentInput, previousValue, operation])
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [expression, currentInput, previousValue, operation, rightPanelView]);
 
   const formatNumber = (num: number | string): string => {
     try {
@@ -1189,6 +1200,23 @@ export function Calculator() {
       console.error('計算エラー:', error);
     });
   };
+
+  // 計算履歴エントリーをクリックしたときの処理を追加
+  const useHistoryEntry = (entry: string) => {
+    if (entry.includes('=')) {
+      const [expression, result] = entry.split('=').map(s => s.trim());
+      
+      // ディスプレイをリセット
+      clear();
+      
+      // 選択した計算式と結果をセット
+      setExpression(expression);
+      setCurrentInput(result);
+      setCalculatedResult(result);
+      setPreviousValue(parseFloat(result));
+      setNewNumber(true);
+    }
+  }
 
   return (
     <div className={`flex gap-0 ${isDarkMode ? 'dark bg-slate-900' : 'bg-white'}`}>
@@ -1495,8 +1523,9 @@ export function Calculator() {
                   {calculatorHistory.map((entry, index) => (
                     <div 
                       key={index} 
-                      className="mb-2 text-sm text-left" 
+                      className="mb-2 text-sm text-left cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 p-2 rounded transition-colors" 
                       style={{ direction: 'ltr', userSelect: 'text' }}
+                      onClick={() => useHistoryEntry(entry)}
                     >
                       {entry}
                     </div>
