@@ -83,6 +83,13 @@ def normalize_operators(expression):
                 i += next_pos
                 continue
         
+        # 2乗の処理
+        if expression[i] == '^' and i + 1 < len(expression) and expression[i+1] == '2':
+            # 直前の数値を2乗に変換
+            result += '**2'
+            i += 2
+            continue
+        
         if i > 0 and expression[i] == 'π' and (expression[i-1].isdigit() or expression[i-1] == ')'):
             result += '*' + str(math.pi)
         elif expression[i] == 'π':
@@ -167,7 +174,7 @@ def calculate(expression):
                     "intermediate": "Error"
                 }
 
-        # 式が演算子で終わっている場合は、�の演算子を無視して計算
+        # 式が演算子で終わっている場合は、の演算子を無視して計算
         if expression and expression[-1] in '+-×÷*/.(':
             expression = expression[:-1]
             normalized = normalize_operators(expression)
@@ -245,7 +252,7 @@ def get_last_complete_calculation(expression):
 def eval_expression(expression):
     try:
         # 使用可能な文字をチェック
-        allowed = set('0123456789.+-*/() π')
+        allowed = set('0123456789.+-*/() π^')  # ^を追加
         if not all(c in allowed for c in expression):
             raise ValueError("不正な文字が含まれています")
 
@@ -256,7 +263,7 @@ def eval_expression(expression):
             # 式を評価（組み込み関数へのアクセスを制限）
             result = float(eval(expression, {"__builtins__": {}}, {}))
             
-            # 結果の���証
+            # 結果の検証
             if math.isnan(result) or math.isinf(result):
                 raise ValueError("無効な計算結果です")
                 
@@ -302,7 +309,7 @@ def format_result(number):
             return {"error": "結果のフォーマットに失敗しました"}
         return {"result": formatted}
     except:
-        return {"error": "結果のフォーマットに失敗しました"}
+        return {"error": "結果のフォ���マットに失敗しました"}
 
 def convert_operators(expression):
     """演算子を×や÷に変換"""

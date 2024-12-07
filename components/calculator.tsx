@@ -346,7 +346,7 @@ export function Calculator() {
     const newExpression = newNumber ? value : currentInput + value;
     setExpression(newExpression);
 
-    // sin, cos, tanが含���ている場合はリアルタイム計算を実行
+    // sin, cos, tanが含���れている場合はリアルタイム計算を実行
     const trigFunctions = ['sin', 'cos', 'tan'];
     if (trigFunctions.some(func => newExpression.includes(func))) {
       try {
@@ -441,7 +441,7 @@ export function Calculator() {
       const [lastExpression, lastResult] = lastCalculation.split('=').map(s => s.trim());
       
       // 現在の式が前回の計算結果から続いているかチェック
-      if (expression.startsWith(lastExpression)) {
+      if (expression && expression.length > lastExpression.length && expression.startsWith(lastExpression)) {
         // 前回の計算式を残して、それ以降をクリア
         setExpression(lastExpression);
         setCurrentInput(lastResult);
@@ -462,12 +462,20 @@ export function Calculator() {
     setExpression("");
   }
 
-  const clearAll = (shouldClearHistory: boolean = true) => {
-    clear()
-    setMemory(0)
-    setFullExpression("")
+  const clearAll = (shouldClearHistory: boolean = false) => {
+    // ディスプレイのリセット
+    setCurrentInput("0");
+    setCalculatedResult("0");
+    setPreviousValue(null);
+    setOperation(null);
+    setNewNumber(true);
+    setExpression("");
+    setFullExpression("");
+    setMemory(0);
+
+    // 計算履歴は指定された場合のみクリア
     if (shouldClearHistory) {
-      setCalculatorHistory([])
+      setCalculatorHistory([]);
     }
   }
 
@@ -497,7 +505,7 @@ export function Calculator() {
       return;
     }
 
-    // 上記以外は従来通り最後の一文字ずつ削除
+    // 上���以外は従来通り最後の一文字ずつ削除
     if (expression.length > 1) {
       const newExpression = expression.slice(0, -1);
       setExpression(newExpression);
@@ -522,21 +530,31 @@ export function Calculator() {
     }
   };
 
-  const square = () => {
+  const square = async () => {
     try {
-      const num = new Decimal(currentInput)
-      const result = num.times(num)
-      setCurrentInput(result.toString())
-      setCalculatedResult(result.toString())
-      setNewNumber(true)
+      // 現在の式に^2を追加
+      const newExpression = expression === "" ? currentInput + "^2" : expression + "^2";
+      setExpression(newExpression);
+      
+      // Pythonバックエンドで計算
+      const result = await calculateWithPython(newExpression);
+      if (result && result.intermediate) {
+        setCalculatedResult(result.intermediate);
+        setCurrentInput(result.intermediate);
+      } else if (result && result.result) {
+        setCalculatedResult(result.result);
+        setCurrentInput(result.result);
+      }
+      
+      setNewNumber(true);
     } catch (error) {
-      console.error("算エラー:", error)
+      console.error("計算エラー:", error);
     }
   }
 
   const sin = () => {
     if (currentInput === "0" && !expression) {
-      // 期状態の0のときは、0を消してsinを入力
+      // 期状態0のときは、0を消してsinを入力
       setExpression('sin');
       setCurrentInput('sin');
     } else {
@@ -959,7 +977,7 @@ export function Calculator() {
         del();
       }
       else if (e.key === 'Escape') {
-        clearAll(false);  // 履歴をクリアしない
+        clearAll(false);  // ACボタンと同じ処理（履歴はクリアしない）
       }
     };
 
@@ -1242,7 +1260,7 @@ export function Calculator() {
                 variant="outline"
                 className="w-full"
               >
-                延長
+                長
               </Button>
               <Button
                 variant="outline"
@@ -1346,7 +1364,7 @@ export function Calculator() {
               <Button variant="ghost" className="bg-slate-100 hover:bg-slate-200 text-slate-800" onClick={() => appendNumber("00")}>00</Button>
               <Button className={getButtonClass('accent')} onClick={del}>DEL</Button>
               <Button className={getButtonClass('accent')} onClick={clear}>C</Button>
-              <Button className={getButtonClass('accent')} onClick={() => clearAll(true)}>AC</Button>
+              <Button className={getButtonClass('accent')} onClick={() => clearAll(false)}>AC</Button>
               <Button className={getButtonClass('accent')} onClick={calculateResult}>=</Button>
             </div>
 
@@ -1381,7 +1399,7 @@ export function Calculator() {
 
             <div className="mt-4 flex gap-2">
               <Input
-                placeholder="式を入力してください"
+                placeholder="式を入力してくだださい"
                 value={quickInput}
                 onChange={handleQuickInputChange}
                 onKeyDown={(e) => {
