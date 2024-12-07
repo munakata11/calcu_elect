@@ -469,34 +469,82 @@ export function Calculator() {
   }
 
   const sin = () => {
-    if (operation) {
-      setExpression(expression + 'sin')
+    if (currentInput === "0" && !expression) {
+      // 初期状態の0のときは、0を消してsinを入力
+      setExpression('sin');
+      setCurrentInput('sin');
     } else {
-      setExpression('sin')
+      // 数字の後は、そのまま�けて入力
+      const currentExpr = expression || currentInput;
+      const newExpression = currentExpr + 'sin';
+      setExpression(newExpression);
+      setCurrentInput(newExpression);
+
+      // リアルタイム計算を実行
+      calculateWithPython(newExpression).then(result => {
+        if (result.intermediate) {
+          setCalculatedResult(result.intermediate);
+        } else if (result.result) {
+          setCalculatedResult(result.result);
+        }
+      }).catch(error => {
+        console.error('計算エラー:', error);
+      });
     }
-    setNewNumber(true)
-    setCurrentInput("0")
-  }
+    setNewNumber(false);
+  };
 
   const cos = () => {
-    if (operation) {
-      setExpression(expression + 'cos')
+    if (currentInput === "0" && !expression) {
+      // 初期状態の0のときは、0を消してcosを入力
+      setExpression('cos');
+      setCurrentInput('cos');
     } else {
-      setExpression('cos')
+      // 数字の後は、そのまま�けて入力
+      const currentExpr = expression || currentInput;
+      const newExpression = currentExpr + 'cos';
+      setExpression(newExpression);
+      setCurrentInput(newExpression);
+
+      // リアルタイム計算を実行
+      calculateWithPython(newExpression).then(result => {
+        if (result.intermediate) {
+          setCalculatedResult(result.intermediate);
+        } else if (result.result) {
+          setCalculatedResult(result.result);
+        }
+      }).catch(error => {
+        console.error('計算エラー:', error);
+      });
     }
-    setNewNumber(true)
-    setCurrentInput("0")
-  }
+    setNewNumber(false);
+  };
 
   const tan = () => {
-    if (operation) {
-      setExpression(expression + 'tan')
+    if (currentInput === "0" && !expression) {
+      // 初期状態の0のときは、0を消してtanを入力
+      setExpression('tan');
+      setCurrentInput('tan');
     } else {
-      setExpression('tan')
+      // 数字の後は、そのまま�けて入力
+      const currentExpr = expression || currentInput;
+      const newExpression = currentExpr + 'tan';
+      setExpression(newExpression);
+      setCurrentInput(newExpression);
+
+      // リアルタイム計算を実行
+      calculateWithPython(newExpression).then(result => {
+        if (result.intermediate) {
+          setCalculatedResult(result.intermediate);
+        } else if (result.result) {
+          setCalculatedResult(result.result);
+        }
+      }).catch(error => {
+        console.error('計算エラー:', error);
+      });
     }
-    setNewNumber(true)
-    setCurrentInput("0")
-  }
+    setNewNumber(false);
+  };
 
   const circleArea = () => {
     try {
@@ -565,7 +613,7 @@ export function Calculator() {
       if (typeof result === 'number' && !isNaN(result)) {
         response.content = `計結果は ${result} です`
       } else {
-        response.content = "申訳ありまん。その計算式は理できませんした。"
+        response.content = "申訳ありまん。そ��計算式は理できませんした。"
       }
     } catch {
       response.content = "申しません。の計は理解きまんでした"
@@ -978,7 +1026,7 @@ export function Calculator() {
   // 計算機の容が更されたときにリサイズを実行
   useEffect(() => {
     const resizeObserver = new ResizeObserver((entries) => {
-      // し延���入れてアニメーション完了後にリサイズ
+      // し延入れてアニメーション完了後にリサイズ
       setTimeout(handleResize, 100);
     });
 
@@ -1127,7 +1175,7 @@ export function Calculator() {
                   className="px-2 h-10" 
                   onClick={() => toggleUnit('volume')}
                 >
-                  ��
+                  ⇄
                 </Button>
               </div>
             </div>
