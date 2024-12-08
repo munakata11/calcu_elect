@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/tooltip"
 import { ColorScheme, colorSchemes } from "./themes"
 import Decimal from 'decimal.js'
+import { ChatPanel } from "./chat-panel"
 
 type AIModel = 'gpt4' | 'gpt35' | 'claude'
 
@@ -246,7 +247,7 @@ export function Calculator() {
         setExpression(`${expression}${op}`);
         setFullExpression(`${fullExpression}${op}`);
         
-        // 式が演算子で終わる場合、Pythonバックエンドで計算
+        // 式が演算子で終わ���場合、Pythonバックエンドで計算
         try {
           const result = await calculateWithPython(expression + op);
           if (result && result.intermediate) {
@@ -442,7 +443,6 @@ export function Calculator() {
       
       // 現在の式が前回の計算結果から続いているかチェック
       if (expression && expression.length > lastExpression.length && expression.startsWith(lastExpression)) {
-        // 前回の計算式を残して、それ以降をクリア
         setExpression(lastExpression);
         setCurrentInput(lastResult);
         setCalculatedResult(lastResult);
@@ -460,6 +460,8 @@ export function Calculator() {
     setOperation(null);
     setNewNumber(true);
     setExpression("");
+    // quickInputもクリア
+    setQuickInput("");
   }
 
   const clearAll = (shouldClearHistory: boolean = false) => {
@@ -472,8 +474,10 @@ export function Calculator() {
     setExpression("");
     setFullExpression("");
     setMemory(0);
+    // quickInputもクリア
+    setQuickInput("");
 
-    // 計算履歴は指定された場合のみクリア
+    // 計算履歴は指定された場合のみクリ��
     if (shouldClearHistory) {
       setCalculatorHistory([]);
     }
@@ -554,7 +558,7 @@ export function Calculator() {
 
   const sin = () => {
     if (currentInput === "0" && !expression) {
-      // 期状態0のときは、0を消してsinを入力
+      // 期状態0のときは、0を���してsinを入力
       setExpression('sin');
       setCurrentInput('sin');
     } else {
@@ -1441,13 +1445,6 @@ export function Calculator() {
               <Button onClick={handleQuickSend} size="icon" className={getButtonClass('primary')}>
                 <Send className="h-4 w-4" />
               </Button>
-              <Button 
-                onClick={handleVoiceInput} 
-                size="icon" 
-                className={getButtonClass('primary')}
-              >
-                <Mic className="h-4 w-4" />
-              </Button>
             </div>
           </CardContent>
         </Card>
@@ -1463,7 +1460,7 @@ export function Calculator() {
                     className={`${rightPanelView === 'chat' ? 'bg-slate-100 dark:bg-slate-700' : ''} hover:bg-slate-100 dark:hover:bg-slate-700`}
                     onClick={() => setRightPanelView('chat')}
                   >
-                    チット
+                    チャット
                   </Button>
                   <Button
                     variant="ghost"
@@ -1471,7 +1468,7 @@ export function Calculator() {
                     className={`${rightPanelView === 'history' ? 'bg-slate-100 dark:bg-slate-700' : ''} hover:bg-slate-100 dark:hover:bg-slate-700`}
                     onClick={() => setRightPanelView('history')}
                   >
-                    計算歴
+                    計算履歴
                   </Button>
                   <Button
                     variant="ghost"
@@ -1498,72 +1495,11 @@ export function Calculator() {
                   </div>
                 </div>
               ) : rightPanelView === 'chat' ? (
-                <>
-                  <ScrollArea className="h-[500px] mb-4">
-                    {chatView === 'chat' ? (
-                      messages.map((message, index) => (
-                        <div
-                          key={index}
-                          className={`mb-4 flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                        >
-                          <div
-                            className={`rounded-lg px-4 py-2 max-w-[80%] ${
-                              message.role === "user"
-                                ? getButtonClass('primary')
-                                : isDarkMode ? 'bg-slate-700' : 'bg-slate-100'
-                            }`}
-                          >
-                            {message.content}
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      messages.map((message, index) => (
-                        <div key={index} className="mb-2 text-sm">
-                          <strong>{message.role === "user" ? "あ" : "アシスタント"}:</strong> {message.content}
-                        </div>
-                      ))
-                    )}
-                  </ScrollArea>
-                  <div className="space-y-2">
-                    <Select value={aiModel} onValueChange={(value) => setAIModel(value as AIModel)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="AIモデル選" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="gpt4">GPT-4</SelectItem>
-                        <SelectItem value="gpt35">GPT-3.5</SelectItem>
-                        <SelectItem value="claude">Claude</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <form onSubmit={handleSendMessage} className="flex gap-2">
-                      <Input
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        placeholder="AIで計算します"
-                        className={isDarkMode ? 'bg-slate-700 border-slate-600' : ''}
-                      />
-                      <Button type="submit" size="icon" className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600">
-                        <Send className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        type="button"
-                        size="icon" 
-                        className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600"
-                        onClick={handleVoiceInput}
-                      >
-                        <Mic className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        type="button"
-                        size="icon" 
-                        className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600"
-                      >
-                        <Paperclip className="h-4 w-4" />
-                      </Button>
-                    </form>
-                  </div>
-                </>
+                <ChatPanel
+                  isDarkMode={isDarkMode}
+                  colorScheme={colorScheme}
+                  getButtonClass={getButtonClass}
+                />
               ) : (
                 <ScrollArea className="h-[550px]">
                   {calculatorHistory.map((entry, index) => (
