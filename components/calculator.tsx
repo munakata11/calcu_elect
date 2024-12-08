@@ -135,7 +135,7 @@ export function Calculator() {
       // @ts-ignore - window.electronAPI は preload.js で定義
       const result: CalculationResult = await window.electronAPI.calculate(normalizedExpression);
       if (!result) {
-        throw new Error('計算エラーが発生しました');
+        throw new Error('計算��ラーが発生しました');
       }
 
       return {
@@ -297,7 +297,11 @@ export function Calculator() {
     }
 
     try {
-      const expressionToCalculate = expression || currentInput;
+      let expressionToCalculate = expression || currentInput;
+      if (/[+\-×÷]$/.test(expressionToCalculate)) {
+        expressionToCalculate = expressionToCalculate.slice(0, -1);
+      }
+
       const result = await calculateWithPython(expressionToCalculate);
       
       let displayResult = "";
@@ -309,10 +313,11 @@ export function Calculator() {
 
       if (displayResult) {
         setCalculatedResult(displayResult);
-        setExpression(`${expressionToCalculate} = ${displayResult}`);
-        setFullExpression(`${expressionToCalculate} = ${displayResult}`);
+        const cleanExpression = expressionToCalculate.replace(/[+\-×÷]$/, '');
+        setExpression(`${cleanExpression} = ${displayResult}`);
+        setFullExpression(`${cleanExpression} = ${displayResult}`);
         
-        const historyEntry = `${expressionToCalculate} = ${displayResult}`;
+        const historyEntry = `${cleanExpression} = ${displayResult}`;
         setCalculatorHistory(prev => [...prev, historyEntry]);
       }
       
@@ -710,7 +715,7 @@ export function Calculator() {
         response.content = "申し訳ありません。式が理解できませんでした。"
       }
     } catch {
-      response.content = "申し訳ありません。式は理解できませんした"
+      response.content = "申し訳あ��ません。式は理解できませんした"
     }
 
     setMessages([...messages, userMessage, response])

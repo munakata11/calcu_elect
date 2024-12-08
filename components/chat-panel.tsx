@@ -12,6 +12,7 @@ interface ChatPanelProps {
   isDarkMode: boolean;
   colorScheme: ColorScheme;
   getButtonClass: (type: keyof typeof colorSchemes[ColorScheme]) => string;
+  setRightPanelView: (view: string) => void;
 }
 
 interface AttachedFile {
@@ -21,7 +22,23 @@ interface AttachedFile {
   url?: string;
 }
 
-export function ChatPanel({ isDarkMode, colorScheme, getButtonClass }: ChatPanelProps) {
+interface SpeechRecognitionEvent {
+  resultIndex: number;
+  results: {
+    [key: number]: {
+      [key: number]: {
+        transcript: string;
+      };
+      isFinal: boolean;
+    };
+  };
+}
+
+interface SpeechRecognitionError {
+  error: string;
+}
+
+export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPanelView }: ChatPanelProps) {
   const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([
     { role: "assistant", content: "こんにちは！計算のお手伝いをさせていただきます。" }
   ])
@@ -30,6 +47,8 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass }: ChatPanel
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedModel, setSelectedModel] = useState("gpt-3.5-turbo")
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
 
   const handleFileAttach = () => {
     fileInputRef.current?.click()
@@ -117,6 +136,88 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass }: ChatPanel
     setAttachedFiles([]);
   };
 
+  const toggleVoiceInput = async () => {
+    if (isListening) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
+        setIsListening(false);
+      }
+      return;
+    }
+
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      // @ts-ignore
+      const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
+      if (!SpeechRecognition) {
+        throw new Error('Speech recognition not supported');
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'ja-JP';
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      // グローバルな文字列バッファ
+      let finalTranscript = '';
+
+      recognition.onstart = () => {
+        console.log('Speech recognition started');
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
+        let interimTranscript = '';
+        
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript;
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+
+        setInput(finalTranscript + interimTranscript);
+      };
+
+      recognition.onend = () => {
+        console.log('Speech recognition ended, restarting...');
+        // isListeningがtrueの場合のみ再起動
+        if (isListening) {
+          try {
+            recognition.start();
+          } catch (error) {
+            console.error('Failed to restart recognition:', error);
+          }
+        }
+      };
+
+      recognition.onerror = (event: SpeechRecognitionError) => {
+        console.error('Speech recognition error:', event.error);
+        // no-speechエラーは無視して継続
+        if (event.error === 'no-speech') {
+          return;
+        }
+        // その他のエラーの場合は停止
+        setIsListening(false);
+        recognitionRef.current = null;
+      };
+
+      // 初回起動
+      recognition.start();
+      recognitionRef.current = recognition;
+      setIsListening(true);
+
+    } catch (error) {
+      console.error('Speech recognition setup error:', error);
+      setIsListening(false);
+      recognitionRef.current = null;
+    }
+  };
+
   useEffect(() => {
     return () => {
       attachedFiles.forEach(file => {
@@ -126,6 +227,15 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass }: ChatPanel
       })
     }
   }, [attachedFiles])
+
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        setIsListening(false);
+      }
+    };
+  }, []);
 
   return (
     <div className="relative h-full">
@@ -259,10 +369,19 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass }: ChatPanel
           <Button 
             type="button"
             size="icon" 
-            className={`${getButtonClass('primary')} w-12`}
+            className={`${getButtonClass('primary')} w-12 transition-all duration-200 ${
+              isListening 
+                ? `${colorScheme === 'monochrome' 
+                    ? 'bg-gray-600 hover:bg-gray-700' 
+                    : 'bg-red-500 hover:bg-red-600'} ring-2 ring-offset-2 ${
+                      isDarkMode ? 'ring-slate-700' : 'ring-white'
+                    }`
+                : ''
+            }`}
             disabled={isLoading}
+            onClick={toggleVoiceInput}
           >
-            <Mic className="h-4 w-4" />
+            <Mic className={`h-4 w-4 ${isListening ? 'animate-pulse' : ''}`} />
           </Button>
         </form>
       </div>
