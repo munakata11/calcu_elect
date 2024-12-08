@@ -1233,13 +1233,12 @@ export function Calculator() {
         <Card className={`w-96 ${isDarkMode ? 'dark bg-slate-800 border-slate-700' : ''} ${isRightPanelOpen ? 'rounded-r-none border-r-0' : ''} rounded-none`}>
           <CardContent className="p-4">
             <div className="grid grid-cols-4 gap-2 mb-4">
-              {/* ボタン名を "モノクロ" に変更 */}
               <Button
                 variant="outline"
                 className="w-full"
                 onClick={toggleColorScheme}
               >
-                モノクロ
+                {colorScheme === 'monochrome' ? 'カラー' : 'モノクロ'}
               </Button>
               <Button
                 variant="outline"
@@ -1465,6 +1464,7 @@ export function Calculator() {
                   isDarkMode={isDarkMode}
                   colorScheme={colorScheme}
                   getButtonClass={getButtonClass}
+                  setRightPanelView={setRightPanelView}
                 />
               ) : (
                 <ScrollArea className="h-[550px]">

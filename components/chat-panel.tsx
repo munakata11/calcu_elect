@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Input } from "@/components/ui/input"
-import { Send, Paperclip, Mic, Camera, X } from 'lucide-react'
+import { Send, Paperclip, Mic, Camera, X, History } from 'lucide-react'
 import { ColorScheme, colorSchemes } from "./themes"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface ChatPanelProps {
   isDarkMode: boolean;
@@ -17,6 +18,7 @@ interface AttachedFile {
   name: string;
   size: number;
   type: string;
+  url?: string;
 }
 
 export function ChatPanel({ isDarkMode, colorScheme, getButtonClass }: ChatPanelProps) {
@@ -27,6 +29,7 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass }: ChatPanel
   const [isLoading, setIsLoading] = useState(false)
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [selectedModel, setSelectedModel] = useState("gpt-3.5-turbo")
 
   const handleFileAttach = () => {
     fileInputRef.current?.click()
@@ -34,15 +37,20 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass }: ChatPanel
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
-    if (files) {
-      const newFiles = Array.from(files).map(file => ({
+    if (files && files[0]) {
+      const file = files[0]
+      const fileData: AttachedFile = {
         name: file.name,
         size: file.size,
         type: file.type
-      }))
-      setAttachedFiles(prev => [...prev, ...newFiles])
+      }
+      
+      if (file.type.startsWith('image/')) {
+        fileData.url = URL.createObjectURL(file)
+      }
+      
+      setAttachedFiles([fileData])
     }
-    // Reset input value to allow selecting the same file again
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -80,6 +88,7 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass }: ChatPanel
         },
         body: JSON.stringify({
           messages: [...messages, userMessage],
+          model: selectedModel,
         }),
       })
 
@@ -99,6 +108,24 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass }: ChatPanel
       setIsLoading(false)
     }
   }
+
+  const resetChat = () => {
+    setMessages([
+      { role: "assistant", content: "こんにちは！計算のお手伝いをさせていただきます。" }
+    ]);
+    setInput("");
+    setAttachedFiles([]);
+  };
+
+  useEffect(() => {
+    return () => {
+      attachedFiles.forEach(file => {
+        if (file.url) {
+          URL.revokeObjectURL(file.url)
+        }
+      })
+    }
+  }, [attachedFiles])
 
   return (
     <div className="relative h-full">
@@ -138,6 +165,15 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass }: ChatPanel
                     isDarkMode ? 'bg-slate-700' : 'bg-slate-100'
                   }`}
                 >
+                  {file.type.startsWith('image/') && file.url && (
+                    <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0">
+                      <img 
+                        src={file.url} 
+                        alt={file.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
                   <span className="truncate max-w-[150px]">
                     {file.name} ({formatFileSize(file.size)})
                   </span>
@@ -155,13 +191,38 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass }: ChatPanel
             </div>
           </div>
         )}
+        <div className="mb-2 flex items-center gap-2">
+          <Select value={selectedModel} onValueChange={setSelectedModel}>
+            <SelectTrigger className={`w-[200px] ${isDarkMode ? 'bg-slate-700 border-slate-600' : ''}`}>
+              <SelectValue placeholder="モデルを選択" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
+              <SelectItem value="gpt-3.5-turbo-16k">GPT-3.5 Turbo 16K</SelectItem>
+              <SelectItem value="gpt-4">GPT-4</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            onClick={resetChat}
+            className={`${colorScheme === 'monochrome' ? 'bg-gray-500 hover:bg-gray-600' : 'bg-orange-500 hover:bg-orange-600'} text-white`}
+            size="sm"
+          >
+            New Chat
+          </Button>
+          <Button
+            onClick={() => setRightPanelView('history')}
+            className={`${colorScheme === 'monochrome' ? 'bg-gray-500 hover:bg-gray-600' : 'bg-orange-500 hover:bg-orange-600'} text-white`}
+            size="icon"
+          >
+            <History className="h-4 w-4" />
+          </Button>
+        </div>
         <form onSubmit={handleSendMessage} className="flex gap-1">
           <input
             type="file"
             ref={fileInputRef}
             onChange={handleFileChange}
             className="hidden"
-            multiple
           />
           <Input
             value={input}
@@ -173,7 +234,7 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass }: ChatPanel
           <Button 
             type="submit" 
             size="icon" 
-            className="bg-blue-500 hover:bg-blue-600 text-white w-12"
+            className={`${getButtonClass('primary')} w-12`}
             disabled={isLoading}
           >
             <Send className="h-4 w-4" />
@@ -181,7 +242,7 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass }: ChatPanel
           <Button 
             type="button"
             size="icon" 
-            className="bg-blue-500 hover:bg-blue-600 text-white w-12"
+            className={`${getButtonClass('primary')} w-12`}
             disabled={isLoading}
             onClick={handleFileAttach}
           >
@@ -190,7 +251,7 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass }: ChatPanel
           <Button 
             type="button"
             size="icon" 
-            className="bg-blue-500 hover:bg-blue-600 text-white w-12"
+            className={`${getButtonClass('primary')} w-12`}
             disabled={isLoading}
           >
             <Camera className="h-4 w-4" />
@@ -198,7 +259,7 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass }: ChatPanel
           <Button 
             type="button"
             size="icon" 
-            className="bg-blue-500 hover:bg-blue-600 text-white w-12"
+            className={`${getButtonClass('primary')} w-12`}
             disabled={isLoading}
           >
             <Mic className="h-4 w-4" />
