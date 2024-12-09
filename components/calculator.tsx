@@ -30,7 +30,7 @@ type ColorScheme = 'light' | 'dark' | 'system' | 'monochrome';
 
 // ここでmonochromeテーマを定義
 // 他のテーマ(light/dark/system)は既存であると仮定。ここでは例として記載
-// 必要に応じて他テーマも定義済みである仮定します。
+// 必要に応じて他テーマも定義済みである���ます。
 const colorSchemes: Record<ColorScheme, { display: string; primary: string; secondary: string; accent: string }> = {
   light: {
     display: "bg-gray-100",
@@ -119,6 +119,7 @@ export function Calculator() {
   const [fullExpression, setFullExpression] = useState<string>("")
   const [isDisplayOverflowing, setIsDisplayOverflowing] = useState(false)
   const [screenshots, setScreenshots] = useState<string[]>([]);
+  const [isPinned, setIsPinned] = useState(false);
 
   // Pythonバックエンドに計算をリクエストする関数
   interface CalculationResult {
@@ -133,7 +134,7 @@ export function Calculator() {
         .replace(/×/g, '*')
         .replace(/÷/g, '/');
 
-      // @ts-ignore - window.electronAPI は preload.js で定義
+      // @ts-ignore - window.electronAPI は preload.js 定義
       const result: CalculationResult = await window.electronAPI.calculate(normalizedExpression);
       if (!result) {
         throw new Error('計算エラーが発生しました');
@@ -716,7 +717,7 @@ export function Calculator() {
         response.content = "申し訳ありません。式が理解できませんでした。"
       }
     } catch {
-      response.content = "申し訳ありません。式は理解���きませんした"
+      response.content = "申し訳ありません。式は理解きませんした"
     }
 
     setMessages([...messages, userMessage, response])
@@ -1249,12 +1250,27 @@ export function Calculator() {
     }
   };
 
+  const handlePin = () => {
+    const newPinState = !isPinned;
+    setIsPinned(newPinState);
+    // @ts-ignore - window.electronAPI は preload.js で定義
+    window.electronAPI.toggleAlwaysOnTop(newPinState);
+  };
+
   return (
     <div className={`flex gap-0 ${isDarkMode ? 'dark bg-slate-900' : 'bg-white'}`}>
       <div className="flex">
         <Card className={`w-96 ${isDarkMode ? 'dark bg-slate-800 border-slate-700' : ''} ${isRightPanelOpen ? 'rounded-r-none border-r-0' : ''} rounded-none`}>
           <CardContent className="p-4">
             <div className="grid grid-cols-4 gap-2 mb-4">
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={handlePin}
+                title={isPinned ? "固定解除" : "ウィンドウを固定"}
+              >
+                {isPinned ? "固定解除" : "固定"}
+              </Button>
               <Button
                 variant="outline"
                 className="w-full"
@@ -1265,15 +1281,8 @@ export function Calculator() {
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={takeScreenshot}
               >
-                <Camera className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full"
-              >
-                長
+                延長
               </Button>
               <Button
                 variant="outline"

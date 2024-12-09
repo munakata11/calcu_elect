@@ -209,9 +209,57 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
     }
   };
 
+  const handleSumRequest = async () => {
+    const prompt = "画像から数字をグループごとにすべてよみとってください。すべての数字グループを順に足して、1+1+12+...=のように計算式と答えを出力してください。";
+    
+    // 現在の添付ファイルを保持
+    const currentFiles = [...attachedFiles];
+    
+    if (!currentFiles.length || isLoading) return;
+
+    const userMessage = { 
+      role: "user" as const, 
+      content: prompt,
+      files: currentFiles 
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInput("");
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: [...messages, userMessage],
+          model: selectedModel,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('API request failed');
+      }
+
+      const data = await response.json();
+      setMessages(prev => [...prev, { role: "assistant", content: data.content }]);
+    } catch (error) {
+      console.error('Chat API error:', error);
+      setMessages(prev => [...prev, { 
+        role: "assistant", 
+        content: "申し訳ありません。エラーが発生しました。" 
+      }]);
+    } finally {
+      setIsLoading(false);
+      setAttachedFiles([]); // 送信後に添付ファイルをクリア
+    }
+  };
+
   return (
     <div className="relative h-full">
-      <ScrollArea className="h-[600px] mb-6">
+      <ScrollArea className="h-[617px] scroll-area pr-4 pb-6">
         {messages.map((message, index) => (
           <div
             key={index}
@@ -236,7 +284,7 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
           </div>
         )}
       </ScrollArea>
-      <div className="absolute bottom-0 left-0 right-0">
+      <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-slate-900 px-2 py-4">
         {attachedFiles.length > 0 && (
           <div className="mb-2">
             <div className="flex flex-wrap gap-1">
@@ -275,7 +323,7 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
         )}
         <div className="mb-2 flex items-center gap-2">
           <Select value={selectedModel} onValueChange={setSelectedModel}>
-            <SelectTrigger className={`w-[200px] ${isDarkMode ? 'bg-slate-700 border-slate-600' : ''}`}>
+            <SelectTrigger className={`w-[180px] ${isDarkMode ? 'bg-slate-700 border-slate-600' : ''}`}>
               <SelectValue placeholder="モデルを選択" />
             </SelectTrigger>
             <SelectContent>
@@ -290,6 +338,17 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
             size="sm"
           >
             New Chat
+          </Button>
+          <Button
+            onClick={handleSumRequest}
+            className={`${colorScheme === 'monochrome' ? 'bg-gray-500 hover:bg-gray-600' : 'bg-orange-500 hover:bg-orange-600'} text-white ${
+              !attachedFiles.some(file => file.type.startsWith('image/')) ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+            size="icon"
+            disabled={!attachedFiles.some(file => file.type.startsWith('image/'))}
+            title={attachedFiles.some(file => file.type.startsWith('image/')) ? "画像内の数字を合計" : "画像を添付してください"}
+          >
+            <span className="text-lg font-bold">Σ</span>
           </Button>
           <Button
             onClick={() => setRightPanelView('history')}

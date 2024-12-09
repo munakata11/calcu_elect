@@ -17,4 +17,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   startVoiceRecognition: () => ipcRenderer.invoke('start-voice-recognition'),
   stopVoiceRecognition: () => ipcRenderer.invoke('stop-voice-recognition'),
   takeScreenshot: () => ipcRenderer.invoke('take-screenshot'),
+  toggleAlwaysOnTop: (shouldPin) => ipcRenderer.send('toggle-always-on-top', shouldPin)
 }); 

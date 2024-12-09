@@ -1,7 +1,14 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import speech_recognition as sr
 import pyaudio
 import json
 import sys
+import io
+
+# 標準出力のエンコーディングをUTF-8に設定
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
 def main():
     recognizer = sr.Recognizer()
@@ -57,7 +64,7 @@ def main():
                     sys.stdout.flush()
                     
                 except sr.WaitTimeoutError:
-                    # タイムアウトは正常なケースとして処理
+                    # タイムアウトは正���なケースとして処理
                     continue
                     
                 except sr.UnknownValueError:

@@ -204,20 +204,31 @@ if (process.env.NODE_ENV === 'development') {
   });
 }
 
-// パネル開閉時のウィン��ウサイズ変更ハンドラー
+// パネル開閉時のウィンドウサイズ変更ハンドラー
 ipcMain.handle('toggle-panel-size', async (event, isOpen) => {
   try {
     const [currentWidth, currentHeight] = win.getSize();
     const panelWidth = 384; // 右パネルの幅（w-96 = 384px）
     
-    // パネルの状態に応じてウィンドウサイズを変更
+    // パネルの状態��応じてウィンドウサイズを変更
     const newWidth = isOpen ? currentWidth + panelWidth : currentWidth - panelWidth;
     win.setSize(newWidth, currentHeight);
     
     console.log('Window size updated:', { width: newWidth, height: currentHeight, panelState: isOpen ? 'open' : 'closed' });
   } catch (error) {
     console.error('パネルサイズ変更エラー:', error);
-  }1
+  }
+}); 
+
+// 常に最前面表示を切り替えるハンドラーを追加
+ipcMain.on('toggle-always-on-top', (event, shouldPin) => {
+  if (win) {
+    win.setAlwaysOnTop(shouldPin, 'floating');
+    // Windowsでより確実に最前面に表示するための設定
+    if (process.platform === 'win32') {
+      win.setSkipTaskbar(shouldPin);
+    }
+  }
 }); 
 
 // 音声認識プロセスの開始
@@ -231,16 +242,27 @@ ipcMain.handle('start-voice-recognition', async () => {
     const voiceScript = path.join(__dirname, '../backend/python/voice_recognition.py');
     
     try {
-      voiceRecognitionProcess = spawn('python', [voiceScript]);
+      voiceRecognitionProcess = spawn('python', [voiceScript], {
+        env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
+      });
 
+      voiceRecognitionProcess.stdout.setEncoding('utf-8');
+      
       voiceRecognitionProcess.stdout.on('data', (data) => {
         try {
-          const result = JSON.parse(data.toString());
-          if (win) {
-            win.webContents.send('voice-recognition-result', result);
+          // 改行で分割して各行を個別に処理
+          const lines = data.toString().trim().split('\n');
+          for (const line of lines) {
+            if (line.trim()) {
+              const result = JSON.parse(line);
+              if (win) {
+                win.webContents.send('voice-recognition-result', result);
+              }
+            }
           }
         } catch (error) {
           console.error('音声認識データのパースエラー:', error);
+          console.error('問題のデータ:', data.toString());
         }
       });
 
