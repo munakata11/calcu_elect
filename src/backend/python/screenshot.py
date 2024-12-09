@@ -93,7 +93,7 @@ def capture_screen():
                     
                     c.create_rectangle(
                         draw_x1, draw_y1, draw_x2, draw_y2,
-                        outline='red',
+                        outline='red',  # メインの方は赤色のまま
                         tags='selection'
                     )
             
@@ -138,7 +138,8 @@ def capture_screen():
                 # 結果を出力
                 result = {
                     "status": "success",
-                    "image": img_str
+                    "image": img_str,
+                    "type": "main"  # メインのスクリーンショットであることを示す
                 }
                 print(json.dumps(result))
             except Exception as e:

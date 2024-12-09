@@ -13,7 +13,6 @@ interface ChatPanelProps {
   colorScheme: ColorScheme;
   getButtonClass: (type: keyof typeof colorSchemes[ColorScheme]) => string;
   setRightPanelView: (view: 'chat' | 'history' | 'extended-display') => void;
-  takeScreenshot: () => Promise<void>;
 }
 
 interface AttachedFile {
@@ -47,7 +46,7 @@ interface Window {
   };
 }
 
-export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPanelView, takeScreenshot }: ChatPanelProps) {
+export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPanelView }: ChatPanelProps) {
   const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([
     { role: "assistant", content: "こんにちは！計算のお手伝いをさせていただきます。" }
   ])
@@ -191,6 +190,25 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
     };
   }, []);
 
+  const handleTakeScreenshot = async () => {
+    try {
+      // @ts-ignore - window.electronAPI は preload.js で定義
+      const result = await window.electronAPI.takeScreenshot();
+      if (result.status === 'success' && result.image) {
+        // スクリーンショットを添付ファイルとして追加
+        const screenshotFile = {
+          name: "screenshot.png",
+          type: "image/png",
+          size: result.image.length,
+          url: `data:image/png;base64,${result.image}`
+        };
+        setAttachedFiles([screenshotFile]);
+      }
+    } catch (error) {
+      console.error('スクリーンショットエラー:', error);
+    }
+  };
+
   return (
     <div className="relative h-full">
       <ScrollArea className="h-[600px] mb-6">
@@ -317,7 +335,7 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
             size="icon" 
             className={`${getButtonClass('primary')} w-12`}
             disabled={isLoading}
-            onClick={takeScreenshot}
+            onClick={handleTakeScreenshot}
           >
             <Camera className="h-4 w-4" />
           </Button>
