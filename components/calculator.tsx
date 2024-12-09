@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Send, Mic, ChevronRight, ChevronLeft, History, ClipboardCopy, Paperclip, Copy } from 'lucide-react'
+import { Send, Mic, ChevronRight, ChevronLeft, History, ClipboardCopy, Paperclip, Copy, Camera } from 'lucide-react'
 import {
   Tooltip,
   TooltipContent,
@@ -30,7 +30,7 @@ type ColorScheme = 'light' | 'dark' | 'system' | 'monochrome';
 
 // ここでmonochromeテーマを定義
 // 他のテーマ(light/dark/system)は既存であると仮定。ここでは例として記載
-// 必要に応じて他テーマも定義済みであると仮定します。
+// 必要に応じて他テーマも定義済みである仮定します。
 const colorSchemes: Record<ColorScheme, { display: string; primary: string; secondary: string; accent: string }> = {
   light: {
     display: "bg-gray-100",
@@ -118,6 +118,7 @@ export function Calculator() {
   const [isMillimeterCube, setIsMillimeterCube] = useState(true)
   const [fullExpression, setFullExpression] = useState<string>("")
   const [isDisplayOverflowing, setIsDisplayOverflowing] = useState(false)
+  const [screenshots, setScreenshots] = useState<string[]>([]);
 
   // Pythonバックエンドに計算をリクエストする関数
   interface CalculationResult {
@@ -135,7 +136,7 @@ export function Calculator() {
       // @ts-ignore - window.electronAPI は preload.js で定義
       const result: CalculationResult = await window.electronAPI.calculate(normalizedExpression);
       if (!result) {
-        throw new Error('計算��ラーが発生しました');
+        throw new Error('計算エラーが発生しました');
       }
 
       return {
@@ -715,7 +716,7 @@ export function Calculator() {
         response.content = "申し訳ありません。式が理解できませんでした。"
       }
     } catch {
-      response.content = "申し訳あ��ません。式は理解できませんした"
+      response.content = "申し訳ありません。式は理解���きませんした"
     }
 
     setMessages([...messages, userMessage, response])
@@ -1232,6 +1233,22 @@ export function Calculator() {
     }
   }
 
+  const takeScreenshot = async () => {
+    try {
+      // @ts-ignore - window.electronAPI は preload.js で定義
+      const result = await window.electronAPI.takeScreenshot();
+      if (result.status === 'success') {
+        setScreenshots(prev => [...prev, result.image]);
+        
+        // チャットパネルを開く
+        setIsRightPanelOpen(true);
+        setRightPanelView('chat');
+      }
+    } catch (error) {
+      console.error('スクリーンショットエラー:', error);
+    }
+  };
+
   return (
     <div className={`flex gap-0 ${isDarkMode ? 'dark bg-slate-900' : 'bg-white'}`}>
       <div className="flex">
@@ -1248,9 +1265,9 @@ export function Calculator() {
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => setIsDarkMode(!isDarkMode)}
+                onClick={takeScreenshot}
               >
-                スクョ
+                <Camera className="h-4 w-4" />
               </Button>
               <Button
                 variant="outline"
@@ -1470,6 +1487,7 @@ export function Calculator() {
                   colorScheme={colorScheme}
                   getButtonClass={getButtonClass}
                   setRightPanelView={setRightPanelView}
+                  takeScreenshot={takeScreenshot}
                 />
               ) : (
                 <ScrollArea className="h-[550px]">

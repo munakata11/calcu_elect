@@ -4,6 +4,8 @@ const { spawn } = require('child_process');
 const electronReload = require('electron-reload');
 
 let pythonProcess = null;
+let voiceRecognitionProcess = null;
+let screenshotProcess = null;
 let win = null;
 
 function handlePythonProcessError(error) {
@@ -54,7 +56,7 @@ function createWindow() {
       const minWidth = 400;
       const minHeight = 500;
 
-      // ウィンドウフレームや余白を考慮したサイズ調整（必要に応じて調整）
+      // ウィンドウフレームや余白を考慮したサイズ整（必要に応じて調整）
       const newWidth = Math.max(Math.ceil(width) + 16, minWidth);
       const newHeight = Math.max(Math.ceil(height) + 40, minHeight);
 
@@ -114,6 +116,12 @@ app.whenReady().then(createWindow);
 app.on('window-all-closed', () => {
   if (pythonProcess) {
     pythonProcess.kill();
+  }
+  if (voiceRecognitionProcess) {
+    voiceRecognitionProcess.kill();
+  }
+  if (screenshotProcess) {
+    screenshotProcess.kill();
   }
   if (process.platform !== 'darwin') {
     app.quit();
@@ -196,7 +204,7 @@ if (process.env.NODE_ENV === 'development') {
   });
 }
 
-// パネル開閉時のウィンドウサイズ変更ハンドラー
+// パネル開閉時のウィン��ウサイズ変更ハンドラー
 ipcMain.handle('toggle-panel-size', async (event, isOpen) => {
   try {
     const [currentWidth, currentHeight] = win.getSize();
@@ -210,4 +218,99 @@ ipcMain.handle('toggle-panel-size', async (event, isOpen) => {
   } catch (error) {
     console.error('パネルサイズ変更エラー:', error);
   }1
+}); 
+
+// 音声認識プロセスの開始
+ipcMain.handle('start-voice-recognition', async () => {
+  return new Promise((resolve, reject) => {
+    if (voiceRecognitionProcess) {
+      resolve({ status: 'already_running' });
+      return;
+    }
+
+    const voiceScript = path.join(__dirname, '../backend/python/voice_recognition.py');
+    
+    try {
+      voiceRecognitionProcess = spawn('python', [voiceScript]);
+
+      voiceRecognitionProcess.stdout.on('data', (data) => {
+        try {
+          const result = JSON.parse(data.toString());
+          if (win) {
+            win.webContents.send('voice-recognition-result', result);
+          }
+        } catch (error) {
+          console.error('音声認識データのパースエラー:', error);
+        }
+      });
+
+      voiceRecognitionProcess.stderr.on('data', (data) => {
+        console.error(`音声認識エラー: ${data}`);
+      });
+
+      voiceRecognitionProcess.on('close', (code) => {
+        console.log(`音声認識プロセスが終了しました。コード: ${code}`);
+        voiceRecognitionProcess = null;
+      });
+
+      resolve({ status: 'started' });
+    } catch (error) {
+      reject(error);
+    }
+  });
+});
+
+// 音声認識プロセスの停止
+ipcMain.handle('stop-voice-recognition', async () => {
+  return new Promise((resolve) => {
+    if (voiceRecognitionProcess) {
+      voiceRecognitionProcess.kill();
+      voiceRecognitionProcess = null;
+      resolve({ status: 'stopped' });
+    } else {
+      resolve({ status: 'not_running' });
+    }
+  });
+}); 
+
+// IPCハンドラーを追加
+ipcMain.handle('take-screenshot', async () => {
+  return new Promise((resolve, reject) => {
+    const screenshotScript = path.join(process.env.NODE_ENV === 'development' 
+      ? path.join(__dirname, '../backend/python/screenshot.py')
+      : path.join(process.resourcesPath, 'screenshot'));
+    
+    try {
+      screenshotProcess = spawn('python', [screenshotScript]);
+      
+      let responseData = '';
+      
+      screenshotProcess.stdout.on('data', (data) => {
+        responseData += data.toString();
+        try {
+          const result = JSON.parse(responseData);
+          resolve(result);
+        } catch (e) {
+          // JSONのパースに失敗した場合は、データが完全ではない可能性があるので続行
+        }
+      });
+
+      screenshotProcess.stderr.on('data', (data) => {
+        console.error(`Screenshot stderr: ${data}`);
+      });
+
+      screenshotProcess.on('error', (error) => {
+        reject(error);
+      });
+
+      screenshotProcess.on('close', (code) => {
+        if (code !== 0) {
+          reject(new Error(`Screenshot process exited with code ${code}`));
+        }
+        screenshotProcess = null;
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
 }); 

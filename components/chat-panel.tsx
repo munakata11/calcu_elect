@@ -12,7 +12,8 @@ interface ChatPanelProps {
   isDarkMode: boolean;
   colorScheme: ColorScheme;
   getButtonClass: (type: keyof typeof colorSchemes[ColorScheme]) => string;
-  setRightPanelView: (view: string) => void;
+  setRightPanelView: (view: 'chat' | 'history' | 'extended-display') => void;
+  takeScreenshot: () => Promise<void>;
 }
 
 interface AttachedFile {
@@ -38,7 +39,15 @@ interface SpeechRecognitionError {
   error: string;
 }
 
-export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPanelView }: ChatPanelProps) {
+interface Window {
+  electron: {
+    startVoiceRecognition: () => Promise<any>;
+    stopVoiceRecognition: () => Promise<any>;
+    onVoiceRecognitionResult: (callback: (result: any) => void) => void;
+  };
+}
+
+export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPanelView, takeScreenshot }: ChatPanelProps) {
   const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([
     { role: "assistant", content: "こんにちは！計算のお手伝いをさせていただきます。" }
   ])
@@ -137,86 +146,31 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
   };
 
   const toggleVoiceInput = async () => {
-    if (isListening) {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-        recognitionRef.current = null;
-        setIsListening(false);
-      }
-      return;
-    }
-
     try {
-      await navigator.mediaDevices.getUserMedia({ audio: true });
-
-      // @ts-ignore
-      const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
-      if (!SpeechRecognition) {
-        throw new Error('Speech recognition not supported');
-      }
-
-      const recognition = new SpeechRecognition();
-      recognition.lang = 'ja-JP';
-      recognition.continuous = true;
-      recognition.interimResults = true;
-
-      // グローバルな文字列バッファ
-      let finalTranscript = '';
-
-      recognition.onstart = () => {
-        console.log('Speech recognition started');
-        setIsListening(true);
-      };
-
-      recognition.onresult = (event: SpeechRecognitionEvent) => {
-        let interimTranscript = '';
-        
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            finalTranscript += transcript;
-          } else {
-            interimTranscript += transcript;
-          }
-        }
-
-        setInput(finalTranscript + interimTranscript);
-      };
-
-      recognition.onend = () => {
-        console.log('Speech recognition ended, restarting...');
-        // isListeningがtrueの場合のみ再起動
-        if (isListening) {
-          try {
-            recognition.start();
-          } catch (error) {
-            console.error('Failed to restart recognition:', error);
-          }
-        }
-      };
-
-      recognition.onerror = (event: SpeechRecognitionError) => {
-        console.error('Speech recognition error:', event.error);
-        // no-speechエラーは無視して継続
-        if (event.error === 'no-speech') {
-          return;
-        }
-        // その他のエラーの場合は停止
+      if (isListening) {
+        await window.electron.stopVoiceRecognition();
         setIsListening(false);
-        recognitionRef.current = null;
-      };
-
-      // 初回起動
-      recognition.start();
-      recognitionRef.current = recognition;
-      setIsListening(true);
-
+      } else {
+        const result = await window.electron.startVoiceRecognition();
+        if (result.status === 'started') {
+          setIsListening(true);
+        }
+      }
     } catch (error) {
-      console.error('Speech recognition setup error:', error);
+      console.error('音声認識エラー:', error);
       setIsListening(false);
-      recognitionRef.current = null;
     }
   };
+
+  useEffect(() => {
+    const handleVoiceResult = (result: any) => {
+      if (result.status === 'success' && result.text) {
+        setInput(prev => prev + result.text);
+      }
+    };
+
+    window.electron.onVoiceRecognitionResult(handleVoiceResult);
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -363,6 +317,7 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
             size="icon" 
             className={`${getButtonClass('primary')} w-12`}
             disabled={isLoading}
+            onClick={takeScreenshot}
           >
             <Camera className="h-4 w-4" />
           </Button>
