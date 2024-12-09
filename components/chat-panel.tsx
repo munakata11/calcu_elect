@@ -54,9 +54,10 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
   const [isLoading, setIsLoading] = useState(false)
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [selectedModel, setSelectedModel] = useState("gpt-3.5-turbo")
+  const [selectedModel, setSelectedModel] = useState("GPT-4o mini")
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const handleFileAttach = () => {
     fileInputRef.current?.click()
@@ -100,11 +101,14 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
     const userMessage = { 
       role: "user" as const, 
       content: input,
-      files: attachedFiles 
+      files: attachedFiles.map(file => ({
+        type: file.type,
+        url: file.url,
+        data: file.url?.split(',')[1] // base64データ部分を抽出
+      }))
     }
     setMessages(prev => [...prev, userMessage])
     setInput("")
-    setAttachedFiles([]) // Clear attached files after sending
     setIsLoading(true)
 
     try {
@@ -116,6 +120,10 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
         body: JSON.stringify({
           messages: [...messages, userMessage],
           model: selectedModel,
+          images: attachedFiles.map(file => ({
+            type: file.type,
+            data: file.url?.split(',')[1] // base64データ部分を抽出
+          }))
         }),
       })
 
@@ -133,6 +141,7 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
       }])
     } finally {
       setIsLoading(false)
+      setAttachedFiles([]) // 送信後に添付ファイルをクリア
     }
   }
 
@@ -212,7 +221,6 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
   const handleSumRequest = async () => {
     const prompt = "画像から数字をグループごとにすべてよみとってください。すべての数字グループを順に足して、1+1+12+...=のように計算式と答えを出力してください。";
     
-    // 現在の添付ファイルを保持
     const currentFiles = [...attachedFiles];
     
     if (!currentFiles.length || isLoading) return;
@@ -220,7 +228,11 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
     const userMessage = { 
       role: "user" as const, 
       content: prompt,
-      files: currentFiles 
+      files: currentFiles.map(file => ({
+        type: file.type,
+        url: file.url,
+        data: file.url?.split(',')[1] // base64データ部分を抽出
+      }))
     };
 
     setMessages(prev => [...prev, userMessage]);
@@ -236,6 +248,10 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
         body: JSON.stringify({
           messages: [...messages, userMessage],
           model: selectedModel,
+          images: currentFiles.map(file => ({
+            type: file.type,
+            data: file.url?.split(',')[1] // base64データ部分を抽出
+          }))
         }),
       });
 
@@ -257,32 +273,43 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
     }
   };
 
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current.scrollTo({
+        top: scrollAreaRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  }, [messages]);
+
   return (
     <div className="relative h-full">
-      <ScrollArea className="h-[617px] scroll-area pr-4 pb-6">
-        {messages.map((message, index) => (
-          <div
-            key={index}
-            className={`mb-4 flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-          >
+      <ScrollArea ref={scrollAreaRef} className="h-[617px] scroll-area pr-4">
+        <div className="pb-40">
+          {messages.map((message, index) => (
             <div
-              className={`rounded-lg px-4 py-2 max-w-[80%] ${
-                message.role === "user"
-                  ? getButtonClass('primary')
-                  : isDarkMode ? 'bg-slate-700' : 'bg-slate-100'
-              }`}
+              key={index}
+              className={`mb-4 flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
             >
-              {message.content}
+              <div
+                className={`rounded-lg px-4 py-2 max-w-[80%] ${
+                  message.role === "user"
+                    ? getButtonClass('primary')
+                    : isDarkMode ? 'bg-slate-700' : 'bg-slate-100'
+                }`}
+              >
+                {message.content}
+              </div>
             </div>
-          </div>
-        ))}
-        {isLoading && (
-          <div className="flex justify-start mb-4">
-            <div className={`rounded-lg px-4 py-2 ${isDarkMode ? 'bg-slate-700' : 'bg-slate-100'}`}>
-              応答を生成中...
+          ))}
+          {isLoading && (
+            <div className="flex justify-start mb-4">
+              <div className={`rounded-lg px-4 py-2 ${isDarkMode ? 'bg-slate-700' : 'bg-slate-100'}`}>
+                応答を生成中...
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </ScrollArea>
       <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-slate-900 px-2 py-4">
         {attachedFiles.length > 0 && (
@@ -327,9 +354,9 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
               <SelectValue placeholder="モデルを選択" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
-              <SelectItem value="gpt-3.5-turbo-16k">GPT-3.5 Turbo 16K</SelectItem>
-              <SelectItem value="gpt-4">GPT-4</SelectItem>
+              <SelectItem value="GPT-4o mini">GPT-4o mini</SelectItem>
+              <SelectItem value="GPT-4o">GPT-4o</SelectItem>
+              <SelectItem value="o1-preview">o1-preview</SelectItem>
             </SelectContent>
           </Select>
           <Button

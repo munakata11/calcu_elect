@@ -9,30 +9,75 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// モデル名のマッピング
+const MODEL_MAPPING = {
+  'GPT-4o mini': 'gpt-4o-mini-2024-07-18',  // 実際のAPIモデル名
+  'GPT-4o': 'chatgpt-4o-latest',       // 実際のAPIモデル名
+  'o1-preview': 'o1-preview'    // 実際のAPIモデル名
+} as const;
+
+type ModelKey = keyof typeof MODEL_MAPPING;
+
 export async function POST(req: Request) {
   try {
-    const { messages, model } = await req.json();
+    const { messages, model, images } = await req.json();
 
     // モデルの検証
-    const validModels = ['gpt-3.5-turbo', 'gpt-3.5-turbo-16k', 'gpt-4'];
-    const selectedModel = validModels.includes(model) ? model : 'gpt-3.5-turbo';
+    const validModels = ['GPT-4o mini', 'GPT-4o', 'o1-preview'] as const;
+    const selectedModel = validModels.includes(model) ? model : 'GPT-4o mini';
+    
+    // APIリクエスト用のモデル名を取得
+    const apiModel = MODEL_MAPPING[selectedModel as ModelKey];
+
+    // モデルごとの設定を調整
+    const modelConfig = {
+      'GPT-4o mini': {
+        temperature: 0.7,
+        max_tokens: 500
+      },
+      'GPT-4o': {
+        temperature: 0.5,
+        max_tokens: 1000
+      },
+      'o1-preview': {
+        temperature: 0.3,
+        max_tokens: 2000
+      }
+    } as const;
+
+    const config = modelConfig[selectedModel as ModelKey];
+
+    // メッセージを準備（画像がある場合は説明を追加）
+    const apiMessages = messages.map((msg: any) => {
+      if (msg.role === 'user' && images?.length > 0) {
+        // 画像の説明を追加
+        const imageDescription = "（添付画像の内容を参照してください）";
+        return {
+          role: msg.role,
+          content: `${msg.content} ${imageDescription}`
+        };
+      }
+      return msg;
+    });
+
+    // システムメッセージを準備
+    const systemMessage = {
+      role: "system",
+      content: images?.length > 0
+        ? "あなたは計算のアシスタントです。数式の計算や数学的な質問に答えてください。ユーザーが添付した画像の内容も考慮して回答してください。"
+        : "あなたは計算のアシスタントです。数式の計算や数学的な質問に答えてください。"
+    };
 
     const response = await openai.chat.completions.create({
-      model: selectedModel,  // 検証済みのモデルを使用
-      messages: [
-        {
-          role: "system",
-          content: "あなたは計算のアシスタントです。数式の計算や数学的な質問に答えてください。"
-        },
-        ...messages
-      ],
-      temperature: 0.7,
-      max_tokens: 500,
+      model: apiModel,
+      messages: [systemMessage, ...apiMessages],
+      ...config,
+      max_tokens: config.max_tokens
     });
 
     return NextResponse.json({
       content: response.choices[0].message.content,
-      model: selectedModel  // 使用されたモデルを返す
+      model: selectedModel
     });
 
   } catch (error) {
