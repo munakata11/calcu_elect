@@ -66,8 +66,21 @@ export async function POST(req: Request) {
     const systemMessage = {
       role: "system",
       content: images?.length > 0
-        ? "あなたは計算のアシスタントです。数式の計算や数学的な質問に答えてください。ユーザーが添付した画像の内容も考慮して回答してください。"
-        : "あなたは計算のアシスタントです。数式の計算や数学的な質問に答えてください。"
+        ? `あなたは計算のアシスタントです。以下の指示に従って回答してください：
+1. 数式の計算や数学的な質問に答えてください
+2. ユーザーが添付した画像の内容も考慮して回答してください
+3. 計算式は [ 1+1=2 ] のような形式で出力してください
+4. 回答は適切な位置で改行を入れ、読みやすく整形してください
+5. 重要な情報は改行で区切って表示してください
+6. 大きな数値（10桁以上）は3桁ごとにカンマを入れて表示してください
+   例: 1234567890 → 1,234,567,890`
+        : `あなたは計算のアシスタントです。以下の指示に従って回答してください：
+1. 数式の計算や数学的な質問に答えてください
+2. 計算式は [ 1+1=2 ] のような形式で出力してください
+3. 回答は適切な位置で改行を入れ、読みやすく整形してください
+4. 重要な情報は改行で区切って表示してください
+5. 大きな数値（10桁以上）は3桁ごとにカンマを入れて表示してください
+   例: 1234567890 → 1,234,567,890`
     };
 
     const response = await openai.chat.completions.create({
@@ -77,8 +90,27 @@ export async function POST(req: Request) {
       max_tokens: config.max_tokens
     });
 
+    // 応答から不要な記号を削除し、出力を整形
+    let cleanedContent = response.choices[0].message.content || '';
+    
+    // バックスラッシュと改行の組み合わせを通常の改行に置換
+    cleanedContent = cleanedContent.replace(/\\n/g, '\n');
+    
+    // 大きな数値（10桁以上）に3桁ごとにカンマを追加
+    cleanedContent = cleanedContent.replace(/\b(\d{10,})\b/g, (match) => {
+      return Number(match).toLocaleString();
+    });
+    
+    // 行頭の不要な記号（ハイフンやバックスラッシュ）を削除
+    cleanedContent = cleanedContent.split('\n')
+      .map(line => line.trim().replace(/^[-\\]+\s*/, ''))
+      .join('\n');
+    
+    // 連続する改行を1つの改行にまとめる
+    cleanedContent = cleanedContent.replace(/\n\s*\n/g, '\n');
+
     return NextResponse.json({
-      content: response.choices[0].message.content,
+      content: cleanedContent,
       model: selectedModel
     });
 

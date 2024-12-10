@@ -217,7 +217,7 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
         setAttachedFiles([screenshotFile]);
       }
     } catch (error) {
-      console.error('スクリーンショットエラー:', error);
+      console.error('スクリーンショットエラ��:', error);
     }
   };
 
@@ -267,18 +267,33 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
     }
   };
 
-  useEffect(() => {
+  const scrollToBottom = () => {
     if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTo({
-        top: scrollAreaRef.current.scrollHeight,
-        behavior: 'smooth'
-      });
+      const scrollArea = scrollAreaRef.current;
+      const scrollContainer = scrollArea.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
     }
-  }, [messages]);
+  };
+
+  // メッセージが更新されたときのスクロール
+  useEffect(() => {
+    // DOMの更新を待ってスクロール
+    setTimeout(scrollToBottom, 100);
+  }, [messages, isLoading]);
+
+  // 初回レンダリング時のスクロール
+  useEffect(() => {
+    scrollToBottom();
+  }, []);
 
   return (
     <div className="relative h-full">
-      <ScrollArea ref={scrollAreaRef} className="h-[617px] scroll-area pr-4">
+      <ScrollArea 
+        ref={scrollAreaRef} 
+        className="h-[617px] scroll-area pr-4"
+      >
         <div className="pb-40">
           {messages.map((message, index) => (
             <div
@@ -286,13 +301,28 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
               className={`mb-4 flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`rounded-lg px-4 py-2 max-w-[80%] ${
+                className={`rounded-lg px-4 py-2 max-w-[80%] whitespace-pre-wrap break-all overflow-x-auto ${
                   message.role === "user"
                     ? getButtonClass('primary')
                     : isDarkMode ? 'bg-slate-700' : 'bg-slate-100'
                 }`}
+                style={{ 
+                  overflowWrap: 'break-word',
+                  wordBreak: 'break-word',
+                  minWidth: '0'
+                }}
               >
-                {message.content}
+                {message.content.split('\n').map((line, i) => {
+                  const hasLongNumber = /\d{10,}/.test(line);
+                  return (
+                    <div key={i} className={hasLongNumber ? 'overflow-x-auto' : ''}>
+                      <span style={{ whiteSpace: hasLongNumber ? 'pre' : 'pre-wrap' }}>
+                        {line}
+                      </span>
+                      {i < message.content.split('\n').length - 1 && <br />}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ))}
