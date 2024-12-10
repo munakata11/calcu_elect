@@ -63,21 +63,33 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
     fileInputRef.current?.click()
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (files && files[0]) {
       const file = files[0]
-      const fileData: AttachedFile = {
-        name: file.name,
-        size: file.size,
-        type: file.type
-      }
       
       if (file.type.startsWith('image/')) {
-        fileData.url = URL.createObjectURL(file)
+        // ファイルをBase64に変換
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          const base64 = e.target?.result as string
+          const fileData: AttachedFile = {
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            url: base64
+          }
+          setAttachedFiles([fileData])
+        }
+        reader.readAsDataURL(file)
+      } else {
+        const fileData: AttachedFile = {
+          name: file.name,
+          size: file.size,
+          type: file.type
+        }
+        setAttachedFiles([fileData])
       }
-      
-      setAttachedFiles([fileData])
     }
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
@@ -177,13 +189,9 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
 
   useEffect(() => {
     return () => {
-      attachedFiles.forEach(file => {
-        if (file.url) {
-          URL.revokeObjectURL(file.url)
-        }
-      })
+      setAttachedFiles([])
     }
-  }, [attachedFiles])
+  }, [])
 
   useEffect(() => {
     return () => {
