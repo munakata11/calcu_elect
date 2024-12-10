@@ -100,13 +100,9 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
 
     const userMessage = { 
       role: "user" as const, 
-      content: input,
-      files: attachedFiles.map(file => ({
-        type: file.type,
-        url: file.url,
-        data: file.url?.split(',')[1] // base64データ部分を抽出
-      }))
+      content: input
     }
+    
     setMessages(prev => [...prev, userMessage])
     setInput("")
     setIsLoading(true)
@@ -120,10 +116,9 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
         body: JSON.stringify({
           messages: [...messages, userMessage],
           model: selectedModel,
-          images: attachedFiles.map(file => ({
-            type: file.type,
-            data: file.url?.split(',')[1] // base64データ部分を抽出
-          }))
+          images: attachedFiles
+            .filter(file => file.type.startsWith('image/'))
+            .map(file => file.url)
         }),
       })
 
@@ -141,7 +136,7 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
       }])
     } finally {
       setIsLoading(false)
-      setAttachedFiles([]) // 送信後に添付ファイルをクリア
+      setAttachedFiles([])
     }
   }
 
@@ -221,18 +216,11 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
   const handleSumRequest = async () => {
     const prompt = "画像から数字をグループごとにすべてよみとってください。すべての数字グループを順に足して、1+1+12+...=のように計算式と答えを出力してください。";
     
-    const currentFiles = [...attachedFiles];
-    
-    if (!currentFiles.length || isLoading) return;
+    if (!attachedFiles.some(file => file.type.startsWith('image/')) || isLoading) return;
 
     const userMessage = { 
       role: "user" as const, 
-      content: prompt,
-      files: currentFiles.map(file => ({
-        type: file.type,
-        url: file.url,
-        data: file.url?.split(',')[1] // base64データ部分を抽出
-      }))
+      content: prompt
     };
 
     setMessages(prev => [...prev, userMessage]);
@@ -248,10 +236,9 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
         body: JSON.stringify({
           messages: [...messages, userMessage],
           model: selectedModel,
-          images: currentFiles.map(file => ({
-            type: file.type,
-            data: file.url?.split(',')[1] // base64データ部分を抽出
-          }))
+          images: attachedFiles
+            .filter(file => file.type.startsWith('image/'))
+            .map(file => file.url)
         }),
       });
 
@@ -269,7 +256,6 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
       }]);
     } finally {
       setIsLoading(false);
-      setAttachedFiles([]); // 送信後に添付ファイルをクリア
     }
   };
 

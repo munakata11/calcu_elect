@@ -11,9 +11,9 @@ const openai = new OpenAI({
 
 // モデル名のマッピング
 const MODEL_MAPPING = {
-  'GPT-4o mini': 'gpt-4o-mini-2024-07-18',  // 実際のAPIモデル名
-  'GPT-4o': 'chatgpt-4o-latest',       // 実際のAPIモデル名
-  'o1-preview': 'o1-preview'    // 実際のAPIモデル名
+  'GPT-4o mini': 'gpt-4o-mini-2024-07-18',
+  'GPT-4o': 'chatgpt-4o-latest',
+  'o1-preview': 'o1-preview'
 } as const;
 
 type ModelKey = keyof typeof MODEL_MAPPING;
@@ -26,10 +26,8 @@ export async function POST(req: Request) {
     const validModels = ['GPT-4o mini', 'GPT-4o', 'o1-preview'] as const;
     const selectedModel = validModels.includes(model) ? model : 'GPT-4o mini';
     
-    // APIリクエスト用のモデル名を取得
     const apiModel = MODEL_MAPPING[selectedModel as ModelKey];
 
-    // モデルごとの設定を調整
     const modelConfig = {
       'GPT-4o mini': {
         temperature: 0.7,
@@ -47,14 +45,18 @@ export async function POST(req: Request) {
 
     const config = modelConfig[selectedModel as ModelKey];
 
-    // メッセージを準備（画像がある場合は説明を追加）
+    // メッセージを準備（画像がある場合は画像URLを追加）
     const apiMessages = messages.map((msg: any) => {
       if (msg.role === 'user' && images?.length > 0) {
-        // 画像の説明を追加
-        const imageDescription = "（添付画像の内容を参照してください）";
         return {
           role: msg.role,
-          content: `${msg.content} ${imageDescription}`
+          content: [
+            { type: 'text', text: msg.content },
+            ...images.map((image: string) => ({
+              type: 'image_url',
+              image_url: { url: image }
+            }))
+          ]
         };
       }
       return msg;
