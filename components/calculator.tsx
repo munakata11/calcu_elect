@@ -30,7 +30,7 @@ type ColorScheme = 'light' | 'dark' | 'system' | 'monochrome';
 
 // ここでmonochromeテーマを定義
 // 他のテーマ(light/dark/system)は既存であると仮定。ここでは例として記載
-// 必要に応じて他テーマも定義済みである���ます。
+// 必要に応じて他テーマも定義済みである
 const colorSchemes: Record<ColorScheme, { display: string; primary: string; secondary: string; accent: string }> = {
   light: {
     display: "bg-gray-100",
@@ -115,7 +115,7 @@ export function Calculator() {
   const [calculatedResult, setCalculatedResult] = useState("0")
   const [quickInput, setQuickInput] = useState("")
   const [isMillimeter, setIsMillimeter] = useState(true)
-  const [isMillimeterCube, setIsMillimeterCube] = useState(true)
+  const [isMillimeterSquare, setIsMillimeterSquare] = useState(true)
   const [fullExpression, setFullExpression] = useState<string>("")
   const [isDisplayOverflowing, setIsDisplayOverflowing] = useState(false)
   const [screenshots, setScreenshots] = useState<string[]>([]);
@@ -414,7 +414,7 @@ export function Calculator() {
     }
   };
 
-  const mmCubeToMCube = async () => {
+  const mmSquareToMSquare = async () => {
     try {
       if (expression.includes('=') || (operation && !expression.includes('='))) {
         setExpression("");
@@ -425,15 +425,15 @@ export function Calculator() {
       const value = parseFloat(calculatedResult);
       let result: number;
       
-      if (isMillimeterCube) {
-        result = value / 1000000000;
+      if (isMillimeterSquare) {
+        result = value / 1000000;
       } else {
-        result = value * 1000000000;
+        result = value * 1000000;
       }
       
       setCalculatedResult(String(result));
       setCurrentInput(String(result));
-      setIsMillimeterCube(!isMillimeterCube);
+      setIsMillimeterSquare(!isMillimeterSquare);
       
       setNewNumber(true);
       setPreviousValue(null);
@@ -680,7 +680,7 @@ export function Calculator() {
     if (type === 'length') {
       setIsMillimeter(!isMillimeter)
     } else {
-      setIsMillimeterCube(!isMillimeterCube)
+      setIsMillimeterSquare(!isMillimeterSquare)
     }
   }
 
@@ -717,7 +717,7 @@ export function Calculator() {
         response.content = "申し訳ありません。式が理解できませんでした。"
       }
     } catch {
-      response.content = "申し訳ありません。式は理解きませんした"
+      response.content = "申し訳ありません。式が理解できませんした"
     }
 
     setMessages([...messages, userMessage, response])
@@ -1257,6 +1257,71 @@ export function Calculator() {
     window.electronAPI.toggleAlwaysOnTop(newPinState);
   };
 
+  const handleExtension = async () => {
+    try {
+      // @ts-ignore - window.electronAPI は preload.js で定義
+      const result = await window.electronAPI.executeExtension();
+      if (result.status === 'success' && result.distance) {
+        const distance = result.distance;
+        setCurrentInput(distance.toString());
+        setCalculatedResult(distance.toString());
+        setCalculatorHistory(prev => [...prev, `延長: ${distance}`]);
+      }
+    } catch (error) {
+      console.error('延長機能エラー:', error);
+    }
+  };
+
+  const handleUnitConversion = async (fromUnit: string, toUnit: string, shouldToggleState: boolean = true) => {
+    try {
+      if (!calculatedResult || calculatedResult === "0") return;
+
+      // 現在の状態に基づいて正しい変換方向を設定
+      const conversionData = {
+        command: "convert_unit",
+        value: calculatedResult,
+        from_unit: fromUnit,
+        to_unit: toUnit
+      };
+
+      // @ts-ignore - window.electronAPI は preload.js で定義
+      const result = await window.electronAPI.calculate(JSON.stringify(conversionData));
+
+      if (result.error) {
+        console.error('単位変換エラー:', result.error);
+        return;
+      }
+
+      // 計算履歴に追加（intermediateを直接使用）
+      if (result.intermediate) {
+        setCalculatorHistory(prev => [...prev, result.intermediate]);
+      }
+
+      // 結果を表示
+      if (result.result) {
+        setCalculatedResult(result.result);
+        setCurrentInput(result.result);
+        setExpression(result.result);
+      }
+      
+      // 状態を更新（オプション）
+      if (shouldToggleState) {
+        if (fromUnit === 'm' || fromUnit === 'mm') {
+          setIsMillimeter(!isMillimeter);
+        } else if (fromUnit === 'm2' || fromUnit === 'mm2') {
+          setIsMillimeterSquare(!isMillimeterSquare);
+        }
+      }
+
+      setNewNumber(true);
+      setPreviousValue(null);
+      setOperation(null);
+
+    } catch (error) {
+      console.error('単位変換エラー:', error);
+    }
+  };
+
   return (
     <div className={`flex gap-0 ${isDarkMode ? 'dark bg-slate-900' : 'bg-white'}`}>
       <div className="flex">
@@ -1281,6 +1346,7 @@ export function Calculator() {
               <Button
                 variant="outline"
                 className="w-full"
+                onClick={handleExtension}
               >
                 延長
               </Button>
@@ -1295,15 +1361,19 @@ export function Calculator() {
               <div className="flex gap-0.5">
                 <Button 
                   className={`${getButtonClass('secondary')} flex-grow h-10`} 
-                  onClick={mmToM}
+                  onClick={() => handleUnitConversion(
+                    isMillimeter ? 'm' : 'mm',
+                    isMillimeter ? 'mm' : 'm',
+                    false
+                  )}
                 >
-                  {isMillimeter ? 'mm → m' : 'm → mm'}
+                  {isMillimeter ? 'm → mm' : 'mm → m'}
                 </Button>
                 <Button 
                   size="sm"
                   variant="outline" 
                   className="px-2 h-10" 
-                  onClick={() => toggleUnit('length')}
+                  onClick={() => setIsMillimeter(!isMillimeter)}
                 >
                   ⇄
                 </Button>
@@ -1311,15 +1381,19 @@ export function Calculator() {
               <div className="flex gap-0.5">
                 <Button 
                   className={`${getButtonClass('secondary')} flex-grow h-10`} 
-                  onClick={mmCubeToMCube}
+                  onClick={() => handleUnitConversion(
+                    isMillimeterSquare ? 'm2' : 'mm2',
+                    isMillimeterSquare ? 'mm2' : 'm2',
+                    false
+                  )}
                 >
-                  {isMillimeterCube ? 'mm³ → m³' : 'm³ → mm³'}
+                  {isMillimeterSquare ? 'm² → mm²' : 'mm² → m²'}
                 </Button>
                 <Button 
                   size="sm"
                   variant="outline" 
                   className="px-2 h-10" 
-                  onClick={() => toggleUnit('volume')}
+                  onClick={() => setIsMillimeterSquare(!isMillimeterSquare)}
                 >
                   ⇄
                 </Button>
@@ -1353,7 +1427,7 @@ export function Calculator() {
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>クリップボードにコピー</p>
+                    <p>クリップボーンにコピー</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -1377,7 +1451,7 @@ export function Calculator() {
               <Button className={getButtonClass('primary')} onClick={() => appendNumber("3")}>3</Button>
               <Button className={`${getButtonClass('secondary')} text-xl`} onClick={() => setOperator("-")}>-</Button>
 
-              <Button variant="ghost" className="bg-slate-100 hover:bg-slate-200 text-slate-800" onClick={() => appendNumber("5.625")}>5</Button>
+              <Button variant="ghost" className="bg-slate-100 hover:bg-slate-200 text-slate-800" onClick={() => appendNumber("5.625")}>5°</Button>
               <Button className={getButtonClass('primary')} onClick={() => appendNumber("0")}>0</Button>
               <Button className={getButtonClass('primary')} onClick={appendDecimal}>.</Button>
               <Button className={getButtonClass('primary')} onClick={appendPi}>π</Button>
@@ -1427,7 +1501,7 @@ export function Calculator() {
 
             <div className="mt-4 flex gap-2">
               <Input
-                placeholder="式を入力してくだださい"
+                placeholder="計算式を入力してください"
                 value={quickInput}
                 onChange={handleQuickInputChange}
                 onKeyDown={(e) => {

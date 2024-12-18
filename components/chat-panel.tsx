@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Input } from "@/components/ui/input"
-import { Send, Paperclip, Mic, Camera, X, History } from 'lucide-react'
+import { Send, Paperclip, Mic, Camera, X } from 'lucide-react'
 import { ColorScheme, colorSchemes } from "./themes"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
@@ -48,7 +48,7 @@ interface Window {
 
 export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPanelView }: ChatPanelProps) {
   const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([
-    { role: "assistant", content: "こんにちは！計算のお手伝いをさせていただきます。" }
+    { role: "assistant", content: "計算したい式などを入力してください。" }
   ])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -184,7 +184,7 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
       }
     };
 
-    window.electron.onVoiceRecognitionResult(handleVoiceResult);
+    window.electronAPI.onVoiceRecognitionResult(handleVoiceResult);
   }, []);
 
   useEffect(() => {
@@ -217,7 +217,7 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
         setAttachedFiles([screenshotFile]);
       }
     } catch (error) {
-      console.error('スクリーンショットエラ��:', error);
+      console.error('スクリーンショットエラー:', error);
     }
   };
 
@@ -374,7 +374,7 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
         )}
         <div className="mb-2 flex items-center gap-2">
           <Select value={selectedModel} onValueChange={setSelectedModel}>
-            <SelectTrigger className={`w-[180px] ${isDarkMode ? 'bg-slate-700 border-slate-600' : ''}`}>
+            <SelectTrigger className={`w-[240px] ${isDarkMode ? 'bg-slate-700 border-slate-600' : ''}`}>
               <SelectValue placeholder="モデルを選択" />
             </SelectTrigger>
             <SelectContent>
@@ -400,13 +400,6 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
             title={attachedFiles.some(file => file.type.startsWith('image/')) ? "画像内の数字を合計" : "画像を添付してください"}
           >
             <span className="text-lg font-bold">Σ</span>
-          </Button>
-          <Button
-            onClick={() => setRightPanelView('history')}
-            className={`${colorScheme === 'monochrome' ? 'bg-gray-500 hover:bg-gray-600' : 'bg-orange-500 hover:bg-orange-600'} text-white`}
-            size="icon"
-          >
-            <History className="h-4 w-4" />
           </Button>
         </div>
         <form onSubmit={handleSendMessage} className="flex gap-1">

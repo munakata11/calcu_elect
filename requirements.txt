@@ -1,0 +1,2 @@
+pywin32>=305
+pyautocad>=0.2.0 

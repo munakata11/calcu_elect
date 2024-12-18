@@ -1,12 +1,14 @@
 interface Window {
-  webkitSpeechRecognition: any;
-  SpeechRecognition: any;
   electronAPI: {
-    calculate: (expression: string) => Promise<{
-      result?: string;
-      error?: string;
-    }>;
-  };
+    calculate: (data: any) => Promise<any>;
+    resizeWindow: (width: number, height: number) => Promise<void>;
+    togglePanelSize: (isOpen: boolean) => Promise<void>;
+    startVoiceRecognition: () => Promise<void>;
+    stopVoiceRecognition: () => Promise<void>;
+    takeScreenshot: () => Promise<any>;
+    toggleAlwaysOnTop: (shouldPin: boolean) => void;
+    onVoiceRecognitionResult: (callback: (result: string) => void) => void;
+  }
 }
 
 interface SpeechRecognitionEvent extends Event {
@@ -21,13 +23,15 @@ interface SpeechRecognitionEvent extends Event {
 
 declare global {
   interface Window {
-    webkitSpeechRecognition: any;
-    SpeechRecognition: any;
     electronAPI: {
-      calculate: (expression: string) => Promise<{
-        result?: string;
-        error?: string;
-      }>;
-    };
+      calculate: (data: any) => Promise<any>;
+      resizeWindow: (width: number, height: number) => Promise<void>;
+      togglePanelSize: (isOpen: boolean) => Promise<void>;
+      startVoiceRecognition: () => Promise<void>;
+      stopVoiceRecognition: () => Promise<void>;
+      takeScreenshot: () => Promise<any>;
+      toggleAlwaysOnTop: (shouldPin: boolean) => void;
+      onVoiceRecognitionResult: (callback: (result: string) => void) => void;
+    }
   }
 } 

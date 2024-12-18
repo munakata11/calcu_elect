@@ -22,6 +22,9 @@ function createWindow() {
     height: 682,
     minWidth: 400,
     minHeight: 500,
+    icon: path.join(process.env.NODE_ENV === 'development' 
+      ? path.join(__dirname, '../../assets/cal.ico')
+      : path.join(process.resourcesPath, 'cal.ico')),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -31,7 +34,7 @@ function createWindow() {
     frame: true,
     backgroundColor: '#ffffff',
     useContentSize: true,
-    title: 'AI電卓'
+    title: 'Calculator'
   });
 
   // メニューバーを完全に無効化
@@ -42,11 +45,11 @@ function createWindow() {
 
   // アクティブ状態の変更を監視
   win.on('focus', () => {
-    win.setTitle('AI電卓 (アクティブ)');
+    win.setTitle('Calculator (Active)');
   });
 
   win.on('blur', () => {
-    win.setTitle('AI電卓');
+    win.setTitle('Calculator');
   });
 
   // IPCハンドラーの設定
@@ -210,7 +213,7 @@ ipcMain.handle('toggle-panel-size', async (event, isOpen) => {
     const [currentWidth, currentHeight] = win.getSize();
     const panelWidth = 384; // 右パネルの幅（w-96 = 384px）
     
-    // パネルの状態��応じてウィンドウサイズを変更
+    // パネルの状態応じてウィンドウサイズを変更
     const newWidth = isOpen ? currentWidth + panelWidth : currentWidth - panelWidth;
     win.setSize(newWidth, currentHeight);
     
@@ -313,7 +316,7 @@ ipcMain.handle('take-screenshot', async () => {
           const result = JSON.parse(responseData);
           resolve(result);
         } catch (e) {
-          // JSONのパースに失敗した場合は、データが完全ではない可能性があるので続行
+          // JSONのパースに失敗した場合���、データが完全ではない可能性があるので続行
         }
       });
 

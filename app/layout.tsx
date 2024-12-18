@@ -15,7 +15,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "AI電卓",
+  title: "Calculator",
   description: "AIを使用した高度な計算が可能な電卓アプリ",
 };
 

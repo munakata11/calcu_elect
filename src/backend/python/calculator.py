@@ -260,7 +260,7 @@ def eval_expression(expression):
         expression = expression.replace('π', str(math.pi))
 
         try:
-            # 式を評価（組み込み関数へのアクセスを制限）
+            # 式を価（組み込み関数へのアクセスを制限）
             result = float(eval(expression, {"__builtins__": {}}, {}))
             
             # 結果の検証
@@ -309,7 +309,7 @@ def format_result(number):
             return {"error": "結果のフォーマットに失敗しました"}
         return {"result": formatted}
     except:
-        return {"error": "結果のフォ���マットに失敗しました"}
+        return {"error": "結果のフォーマットに失敗しました"}
 
 def convert_operators(expression):
     """演算子を×や÷に変換"""
@@ -351,6 +351,47 @@ def validate_expression(expression):
     
     return None
 
+def convert_unit(value, from_unit, to_unit):
+    """単位変換を行う関数"""
+    try:
+        value = float(value)
+        # 不要な小数点以下の0を削除する関数
+        def format_value(num):
+            return f"{num:.10f}".rstrip('0').rstrip('.')
+
+        # 長さの変換
+        if (from_unit == 'm' and to_unit == 'mm'):
+            result = value * 1000
+            return {
+                "result": format_value(result),
+                "intermediate": f"{format_value(value)}×1000={format_value(result)}"
+            }
+        elif (from_unit == 'mm' and to_unit == 'm'):
+            result = value / 1000
+            return {
+                "result": format_value(result),
+                "intermediate": f"{format_value(value)}÷1000={format_value(result)}"
+            }
+        # 面積の変換
+        elif (from_unit == 'm2' and to_unit == 'mm2'):
+            result = value * 1000000
+            return {
+                "result": format_value(result),
+                "intermediate": f"{format_value(value)}×1000000={format_value(result)}"
+            }
+        elif (from_unit == 'mm2' and to_unit == 'm2'):
+            result = value / 1000000
+            return {
+                "result": format_value(result),
+                "intermediate": f"{format_value(value)}÷1000000={format_value(result)}"
+            }
+        else:
+            return {"error": "未対応の単位変換です"}
+    except ValueError:
+        return {"error": "無効な数値です"}
+    except Exception as e:
+        return {"error": str(e)}
+
 def main():
     # 標準出力と標準エラー出力をUTF-8に設定
     if sys.platform == 'win32':
@@ -367,14 +408,22 @@ def main():
             if not line:
                 continue
 
-            # デバッグ用：受け取った入力の内容を出力
-            debug_msg = f"受け取った入力: {line}, 型: {type(line)}"
-            print(json.dumps({
-                "debug": debug_msg
-            }, ensure_ascii=False), file=sys.stderr)
-
-            # 計算を実行
-            result = calculate(line)
+            try:
+                # JSONとしてパースを試みる
+                data = json.loads(line)
+                if isinstance(data, dict) and data.get('command') == 'convert_unit':
+                    # 単位変換の処理
+                    result = convert_unit(
+                        data.get('value'),
+                        data.get('from_unit'),
+                        data.get('to_unit')
+                    )
+                else:
+                    # 通常の計算処理
+                    result = calculate(line)
+            except json.JSONDecodeError:
+                # JSON解析に失敗した場合は通常の計算として処理
+                result = calculate(line)
             
             # 結果を出力
             print(json.dumps(result, ensure_ascii=False))

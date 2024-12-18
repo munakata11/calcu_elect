@@ -50,9 +50,23 @@
   },
   "build": {
     "appId": "com.calculator.app",
+    "productName": "Calculator",
+    "directories": {
+      "output": "dist"
+    },
     "win": {
-      "target": "nsis",
-      "icon": "assets/icon.ico"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "assets/cal.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
     },
     "extraResources": [
       {
@@ -62,3 +76,4 @@
     ]
   }
 }
+
