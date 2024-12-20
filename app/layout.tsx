@@ -1,17 +1,32 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
 import "./globals.css";
 import { ClientLayout } from "./client-layout";
+import localFont from "next/font/local";
 
 const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-  weight: "100 900",
+  src: [
+    {
+      path: '../public/fonts/GeistVF.woff',
+      weight: '100 900',
+      style: 'normal',
+    }
+  ],
+  variable: '--font-geist-sans',
+  display: 'swap',
+  preload: true,
 });
+
 const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
-  weight: "100 900",
+  src: [
+    {
+      path: '../public/fonts/GeistMonoVF.woff',
+      weight: '100 900',
+      style: 'normal',
+    }
+  ],
+  variable: '--font-geist-mono',
+  display: 'swap',
+  preload: true,
 });
 
 export const metadata: Metadata = {

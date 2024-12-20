@@ -1,7 +1,7 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
-const electronReload = require('electron-reload');
+const fs = require('fs');
 
 let pythonProcess = null;
 let voiceRecognitionProcess = null;
@@ -28,7 +28,9 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
-      devTools: process.env.NODE_ENV === 'development'
+      nodeIntegration: false,
+      webSecurity: false,
+      devTools: true
     },
     autoHideMenuBar: true,
     frame: true,
@@ -40,7 +42,7 @@ function createWindow() {
   // メニューバーを完全に無効化
   win.setMenu(null);
 
-  // ウィンドウのサイズ変更を可能にする
+  // ウィンドウサイズ変更を可能にする
   win.setResizable(true);
 
   // アクティブ状態の変更を監視
@@ -74,11 +76,30 @@ function createWindow() {
     }
   });
 
-  // 開発モードではローカルサーバーを使用
+  // 開発モードではローカルサーバーを使用、本番環境ではoutディレクトリから読み込む
   if (process.env.NODE_ENV === 'development') {
     win.loadURL('http://localhost:3000');
   } else {
-    win.loadFile(path.join(__dirname, '../frontend/next.js/out/index.html'));
+    const indexPath = path.join(__dirname, '../../out/index.html');
+    
+    // index.htmlの内容を読み込んで修正
+    let indexContent = fs.readFileSync(indexPath, 'utf8');
+    
+    // base hrefを相対パスに設定
+    indexContent = indexContent.replace(
+      '<head>',
+      `<head><base href="file://${path.dirname(indexPath).replace(/\\/g, '/')}/">`
+    );
+
+    // 一時ファイルに書き出して読み込む
+    const tempDir = path.join(app.getPath('temp'), 'calculator-app');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    const tempIndexPath = path.join(tempDir, 'index.html');
+    fs.writeFileSync(tempIndexPath, indexContent);
+    
+    win.loadFile(tempIndexPath);
   }
 
   // Pythonプロセスの起動と監視
@@ -113,8 +134,16 @@ function createWindow() {
   }
 }
 
-// アプリケーションのライフサイクル管理
-app.whenReady().then(createWindow);
+// アプリケーションの準備が整ったら
+app.whenReady().then(() => {
+  // プロトコルの登録
+  protocol.registerFileProtocol('file', (request, callback) => {
+    const pathname = decodeURIComponent(request.url.replace('file:///', ''));
+    callback(pathname);
+  });
+
+  createWindow();
+});
 
 app.on('window-all-closed', () => {
   if (pythonProcess) {
@@ -167,7 +196,7 @@ ipcMain.handle('calculate', async (event, expression) => {
           }
         }
       } catch (error) {
-        // JSONのパースに失敗した場合は、データが完全に受信されていない可能性があるため継続
+        // JSONのパースに敗した場合は、データが完全に受信されていない可能性があるため継続
       }
     };
 
@@ -200,7 +229,7 @@ ipcMain.handle('calculate', async (event, expression) => {
   });
 });
 
-// 開発時のホットリロード設定
+// 開発時のホットロード設定
 if (process.env.NODE_ENV === 'development') {
   require('electron-reload')(__dirname, {
     electron: path.join(__dirname, '..', '..', 'node_modules', '.bin', 'electron')
@@ -316,7 +345,7 @@ ipcMain.handle('take-screenshot', async () => {
           const result = JSON.parse(responseData);
           resolve(result);
         } catch (e) {
-          // JSONのパースに失敗した場合���、データが完全ではない可能性があるので続行
+          // JSONのパースに失敗した場合、データが完全ではない可能性があるので続行
         }
       });
 

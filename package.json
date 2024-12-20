@@ -3,16 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "main": "./src/electron/main.js",
+  "description": "Advanced Calculator Application",
+  "author": "Calculator Team",
   "scripts": {
     "dev": "next dev -p 3000",
     "electron": "cross-env NODE_ENV=development electron .",
     "dev:electron": "concurrently \"npm run dev\" \"wait-on tcp:3000 && npm run electron\"",
     "build": "cross-env NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 NEXT_DISABLE_SOURCEMAPS=1 NEXT_TRACE_ENTRYPOINTS=false next build",
-    "build:electron": "cross-env NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 NEXT_DISABLE_SOURCEMAPS=1 NEXT_TRACE_ENTRYPOINTS=false next build && electron-builder",
+    "build:electron": "npm run clean && cross-env NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 NEXT_DISABLE_SOURCEMAPS=1 NEXT_TRACE_ENTRYPOINTS=false next build && electron-builder",
     "start": "cross-env NODE_ENV=production electron .",
     "lint": "next lint",
-    "package": "electron-builder build --win",
-    "clean": "rimraf out dist"
+    "package": "npm run clean && npm run build && electron-builder build --win",
+    "clean": "rimraf .next out dist",
+    "next-dev": "next dev",
+    "next-build": "next build",
+    "next-start": "next start",
+    "build:out": "cross-env NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 NEXT_DISABLE_SOURCEMAPS=1 next build"
   },
   "dependencies": {
     "@radix-ui/react-scroll-area": "^1.2.1",
@@ -20,8 +26,8 @@
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-tabs": "^1.1.1",
     "@radix-ui/react-tooltip": "^1.1.4",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
+    "class-variance-authority": "^0.6.0",
+    "clsx": "^1.2.1",
     "decimal.js": "^10.4.3",
     "lucide-react": "^0.462.0",
     "next": "14.2.16",
@@ -35,6 +41,7 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "autoprefixer": "^10.4.17",
     "concurrently": "^9.1.0",
     "cross-env": "^7.0.3",
     "electron": "^29.1.0",
@@ -52,28 +59,48 @@
     "appId": "com.calculator.app",
     "productName": "Calculator",
     "directories": {
-      "output": "dist"
+      "output": "dist",
+      "buildResources": "assets"
     },
+    "files": [
+      "src/electron/**/*",
+      "out/**/*",
+      "app/**/*",
+      "public/**/*",
+      "node_modules/**/*",
+      "package.json",
+      "next.config.js",
+      "postcss.config.js",
+      "tailwind.config.js"
+    ],
+    "extraResources": [
+      {
+        "from": "assets",
+        "to": "assets"
+      },
+      {
+        "from": "public/fonts",
+        "to": "public/fonts"
+      },
+      {
+        "from": "out",
+        "to": "out"
+      }
+    ],
     "win": {
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
-      ],
-      "icon": "assets/cal.ico"
+      ]
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true
-    },
-    "extraResources": [
-      {
-        "from": "src/backend/python/dist/calculator",
-        "to": "calculator"
-      }
-    ]
+    }
   }
 }
-

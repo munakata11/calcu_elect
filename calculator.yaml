@@ -7,240 +7,108 @@ root:
           directory:
             main:
               app:
-                client-layout.tsx:
-                  content: |-
-                    ?????????????????????
-                    ????:
-                    - react
-                    ??:
-                    - ??????????????????
-                  dependency: []
+                api:
+                  chat:
+                    route.ts:
+                      content: |-
+                        チャットAPI実装
+                        外部依存:
+                        - openai
+                        - next/server
+                        機能:
+                        - OpenAI APIとの通信
+                        - チャット応答生成
+                        - 画像処理対応
+                      dependency: []
                 components:
                   CalculationHistory.module.css:
                     content: |-
-                      ???????????
-                      ??:
-                      - ???????????
-                      - ???????????
+                      計算履歴のスタイル定義
+                      機能:
+                      - 履歴表示のレイアウト
+                      - スクロールバーのスタイル
+                      - 履歴項目のスタイル
                     dependency: []
                   CalculationHistory.tsx:
                     content: |-
-                      ?????????????
-                      ????:
+                      計算履歴コンポーネント
+                      外部依存:
                       - react
-                      ??:
-                      - ???????
-                      - ?????????????
+                      機能:
+                      - 計算履歴の表示
+                      - スクロール可能なリスト表示
                     dependency:
-                      - src//app/components/CalculationHistory.module.css
+                      - src/app/components/CalculationHistory.module.css
                   Calculator.module.css:
                     content: |-
-                      ??????????
-                      ??:
-                      - ???UI????????
-                      - ????????
+                      電卓のスタイル定義
+                      機能:
+                      - ボタンレイアウト
+                      - 表示画面のスタイル
+                      - レスポンシブデザイン
                     dependency: []
-                layout.tsx:
-                  content: |-
-                    ?????????????????
-                    ????:
-                    - next/font/local
-                    ??:
-                    - ???????
-                    - ????????
-                    - ????????????
-                  dependency:
-                    - src//app/client-layout.tsx
-                    - src//app/globals.css
-                page.tsx:
-                  content: |-
-                    ?????????????
-                    ????:
-                    - react
-                    ??:
-                    - ??????
-                  dependency:
-                    - src//components/calculator.tsx
-              components:
-                calculator:
-                  calculator-logic.tsx:
-                    content: |-
-                      ????????
-                      ????:
-                      - React
-                      - decimal.js
-                      ??:
-                      - ??????
-                      - ????
-                      - ??????
-                      - ?????????
-                    dependency:
-                      - src//utils/math.ts
-                      - src//hooks/useCalculator.ts
-                      - src//hooks/useWindow.ts
-                      - src//services/pythonCalculator.ts
-                      - src//components/ui/button.tsx
-                      - src//components/ui/card.tsx
-                calculator.tsx:
-                  content: |-
-                    ????????????
-                    ????:
-                    - react
-                    - decimal.js
-                    - lucide-react
-                    ??:
-                    - ????
-                    - ????
-                    - ????
-                  dependency:
-                    - src//components/ui/button.tsx
-                    - src//components/ui/scroll-area.tsx
-                    - src//components/ui/card.tsx
-                    - src//components/ui/tabs.tsx
-                    - src//components/ui/input.tsx
-                    - src//components/ui/select.tsx
-                    - src//components/ui/tooltip.tsx
-                    - src//components/themes.ts
-                themes.ts:
-                  content: |-
-                    ?????
-                    ??:
-                    - ??????????
-                    - ????????
-                  dependency: []
-                ui:
-                  button.tsx:
-                    content: |-
-                      ??????????
-                      ????:
-                      - @radix-ui/react-slot
-                      - class-variance-authority
-                      ??:
-                      - ????????????
-                    dependency:
-                      - src//lib/utils.ts
-                  card.tsx:
-                    content: |-
-                      ??????????
-                      ????: ??
-                      ??:
-                      - ????UI????
-                    dependency:
-                      - src//lib/utils.ts
-                  input.tsx:
-                    content: |-
-                      ??????????????
-                      ????: ??
-                      ??:
-                      - ?????????????
-                    dependency:
-                      - src//lib/utils.ts
-                  scroll-area.tsx:
-                    content: |-
-                      ???????????????
-                      ????:
-                      - @radix-ui/react-scroll-area
-                      ??:
-                      - ???????????
-                    dependency:
-                      - src//lib/utils.ts
-                  select.tsx:
-                    content: |-
-                      Select???????
-                      ????:
-                      - @radix-ui/react-select
-                      - lucide-react
-                      ??:
-                      - ?????????
-                    dependency:
-                      - src//lib/utils.ts
-                  tabs.tsx:
-                    content: |-
-                      Tabs???????
-                      ????:
-                      - @radix-ui/react-tabs
-                      ??:
-                      - ?????????
-                    dependency:
-                      - src//lib/utils.ts
-                  tooltip.tsx:
-                    content: |-
-                      Tooltip???????
-                      ????:
-                      - @radix-ui/react-tooltip
-                      ??:
-                      - ????????
-                    dependency:
-                      - src//lib/utils.ts
-              lib:
-                utils.ts:
-                  content: |-
-                    ?????????
-                    ????:
-                    - clsx
-                    - tailwind-merge
-                    ??:
-                    - ???????
-                    - ????????
-                  dependency: []
               src:
                 backend:
+                  lisp:
+                    measure_distance.lsp:
+                      content: |-
+                        AutoCAD LISPプログラム
+                        外部依存: なし
+                        機能:
+                        - 2点間距離測定
+                        - エラーハンドリング
+                      dependency: []
                   python:
                     calculator.py:
                       content: |-
-                        Python??????
-                        ????:
-                        - math
+                        計算機メインロジック
+                        外部依存:
+                        - sys
                         - json
-                        - sys
-                        ??:
-                        - ???????
-                        - ?????
-                      dependency: []
-                    subprocess_runner.py:
-                      content: |-
-                        ????????
-                        ????:
-                        - sys
-                        - subprocess
-                        - os
-                        ??:
-                        - Python?????????
+                        - re
+                        - math
+                        - codecs
+                        機能:
+                        - 数式計算
+                        - 単位変換
+                        - 括弧チェック
+                        - 演算子正規化
                       dependency:
-                        - src//src/backend/python/calculator.py
+                        - src/backend/python/subprocess_runner.py
+                    voice_recognition.py:
+                      content: |-
+                        音声認識
+                        外部依存:
+                        - speech_recognition
+                        - pyaudio
+                        - json
+                        機能:
+                        - 音声入力
+                        - Google音声認識
+                        - マイク設定
+                      dependency: []
                 electron:
                   main.js:
                     content: |-
-                      Electron ???????
-                      ????:
+                      Electronメインプロセス
+                      外部依存:
                       - electron
                       - path
                       - child_process
                       - electron-reload
-                      ??:
-                      - ???????
-                      - IPC??
+                      機能:
+                      - ウィンドウ管理
+                      - IPCハンドリング
+                      - Pythonプロセス管理
                     dependency:
-                      - src//src/electron/preload.js
+                      - src/electron/preload.js
                   preload.js:
                     content: |-
-                      Electron ??????????
-                      ????:
+                      Electronプリロードスクリプト
+                      外部依存:
                       - electron
-                      ??:
-                      - API???
-                      - ????????
-                    dependency: []
-                frontend:
-                  hooks:
-                    useCalculator.ts:
-                      content: |-
-                        ??????????
-                        ????:
-                        - react
-                        ??:
-                        - ??????
-                        - ????
-                      dependency:
-                        - src//types/global.d.ts
-                        - src//components/calculator.tsx
+                      機能:
+                      - IPC通信ブリッジ
+                      - APIエクスポート
+                    dependency:
+                      - src/electron/main.js

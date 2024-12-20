@@ -161,6 +161,11 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
   };
 
   const toggleVoiceInput = async () => {
+    if (typeof window === 'undefined' || !window.electron) {
+      console.warn('音声認識機能はElectron環境でのみ利用可能です。');
+      return;
+    }
+
     try {
       if (isListening) {
         await window.electron.stopVoiceRecognition();
@@ -184,7 +189,9 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
       }
     };
 
-    window.electronAPI.onVoiceRecognitionResult(handleVoiceResult);
+    if (typeof window !== 'undefined' && window.electron) {
+      window.electron.onVoiceRecognitionResult(handleVoiceResult);
+    }
   }, []);
 
   useEffect(() => {
@@ -207,7 +214,7 @@ export function ChatPanel({ isDarkMode, colorScheme, getButtonClass, setRightPan
       // @ts-ignore - window.electronAPI は preload.js で定義
       const result = await window.electronAPI.takeScreenshot();
       if (result.status === 'success' && result.image) {
-        // スクリーンショットを添付ファイルとして追加
+        // スクリーンショ��トを添付ファイルとして追加
         const screenshotFile = {
           name: "screenshot.png",
           type: "image/png",
